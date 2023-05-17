@@ -64,7 +64,7 @@ class TektronixScope(device.VisaDevice):
         data_obj = pylabframe.data.NumericalData(wfm_converted, x_axis=time_axis, metadata=metadata)
         return data_obj
 
-    def get_channel_waveform(self, channel_id, start=1, stop=None):
+    def acquire_channel_waveform(self, channel_id, start=1, stop=None):
         self.initialize_waveform_transfer(channel_id, start=start, stop=stop)
         wfm = self.do_waveform_transfer()
         return wfm
@@ -84,7 +84,7 @@ class TektronixScope(device.VisaDevice):
 
         mean = visa_property("measu:meas{channel_id}:mean", read_only=True, read_conv=float)
 
-        def get_waveform(self, start=1, stop=None):
-            return self.device.get_channel_waveform(self.channel_id, start=start, stop=stop)
+        def acquire_waveform(self, start=1, stop=None):
+            return self.device.acquire_channel_waveform(self.channel_id, start=start, stop=stop)
 
 
