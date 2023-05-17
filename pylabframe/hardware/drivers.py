@@ -2,17 +2,18 @@ import numpy as np
 
 from . import device
 from enum import Enum
-from .device import enum_conv, str_conv
+from .device import str_conv, SettingEnum
 import pylabframe.data
 
 # helper definition
 visa_property = device.VisaDevice.visa_property
+visa_command = device.VisaDevice.visa_command
 
 
 class TektronixScope(device.VisaDevice):
     NUM_CHANNELS = 2
 
-    class RunModes(Enum):
+    class RunModes(SettingEnum):
         CONTINUOUS = "RUNST"
         SINGLE = "SEQ"
 
@@ -23,10 +24,10 @@ class TektronixScope(device.VisaDevice):
         self.channels: list[TektronixScope.Channel] = [self.Channel(i+1, self) for i in range(self.NUM_CHANNELS)]
 
     # global scpi properties
-    record_length = visa_property("horizontal:recordlength", read_conv=int, write_conv=int)
-    run_mode = visa_property("acquire:stopafter", read_conv=RunModes, write_conv=enum_conv)
+    record_length = visa_property("horizontal:recordlength", rw_conv=int)
+    run_mode = visa_property("acquire:stopafter", rw_conv=RunModes)
     run_state = visa_property("acquire:state", read_conv=bool, write_conv=int)
-    x_scale = visa_property("horizontal:scale", read_conv=float, write_conv=float)
+    x_scale = visa_property("horizontal:scale", rw_conv=float)
 
     # waveform transfer properties
     waveform_points = visa_property("wfmoutpre:nr_pt", read_only=True, read_conv=int)
@@ -77,9 +78,9 @@ class TektronixScope(device.VisaDevice):
             self.device: "TektronixScope" = device
             self.visa_instr = self.device.visa_instr
 
-        y_scale = visa_property("ch{channel_id}:scale", read_conv=float, write_conv=float)
-        offset = visa_property("ch{channel_id}:offset", read_conv=float, write_conv=float)
-        termination = visa_property("ch{channel_id}:termination", read_conv=float, write_conv=float)
+        y_scale = visa_property("ch{channel_id}:scale", rw_conv=float)
+        offset = visa_property("ch{channel_id}:offset", rw_conv=float)
+        termination = visa_property("ch{channel_id}:termination", rw_conv=float)
         inverted = visa_property("ch{channel_id}:invert", read_conv=bool, write_conv=int)
 
         mean = visa_property("measu:meas{channel_id}:mean", read_only=True, read_conv=float)
@@ -88,3 +89,29 @@ class TektronixScope(device.VisaDevice):
             return self.device.acquire_channel_waveform(self.channel_id, start=start, stop=stop)
 
 
+class KeysightESA(device.VisaDevice):
+    class RunModes(SettingEnum):
+        CONTINUOUS = "1"
+        SINGLE = "0"
+
+    class InstrumentModes(SettingEnum):
+        SPECTRUM_ANALYZER = "SA"
+        IQ_ANALYZER = "BASIC"
+
+    instrument_mode = visa_property("inst:sel", rw_conv=InstrumentModes)
+    run_mode = visa_property("initiate:continuous", rw_conv=RunModes)
+
+    center_frequency = visa_property("sense:freq:center", rw_conv=float)
+    span = visa_property("sense:freq:span", rw_conv=float)
+    start_frequency = visa_property("sense:freq:start", rw_conv=float)
+    stop_frequency = visa_property("sense:freq:stop", rw_conv=float)
+    rbw = visa_property("sense:band", rw_conv=float)
+
+    acquisition_time = visa_property("sense:acquisition:time", rw_conv=float)
+    sweep_time = visa_property("sense:sweep:time", rw_conv=float)
+    record_length = visa_property("sense:acquisition:points", rw_conv=int)
+    average_count = visa_property("sense:average:count", rw_conv=int)
+
+    y_unit = visa_property("unit:power")
+
+    start_measurement = visa_command("initiate:immediate")

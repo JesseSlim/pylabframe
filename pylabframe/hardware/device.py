@@ -79,7 +79,11 @@ class VisaDevice(Device):
                     raise e
 
     @classmethod
-    def visa_property(cls, visa_cmd: str, read_only=False, read_conv=str, write_conv=str):
+    def visa_property(cls, visa_cmd: str, read_only=False, read_conv=str, write_conv=str, rw_conv=None):
+        if rw_conv is not None:
+            read_conv = rw_conv
+            write_conv = write_conv
+            
         def visa_getter(self: VisaDevice):
             # doing this gives us access to object properties (eg channel id) that can be put in the command string
             fmt_visa_cmd = visa_cmd
@@ -102,14 +106,21 @@ class VisaDevice(Device):
         prop = property(visa_getter, visa_setter)
         return prop
 
+    @classmethod
+    def visa_command(cls, visa_cmd):
+        def visa_executer(self: VisaDevice, **kw):
+            if hasattr(self, "query_params"):
+                kw.update(self.query_params)
 
-def enum_conv(e, allow_other_types=True):
-    if isinstance(e, Enum):
-        return e.value
-    elif allow_other_types:
-        return e
-    else:
-        raise ValueError(f"{e} is not an enum type")
+            fmt_visa_cmd = visa_cmd.format(**kw)
+            return self.visa_instr.write(fmt_visa_cmd)
+        return visa_executer
+
 
 def str_conv(s):
     return s.replace('"', '')
+
+
+class SettingEnum(Enum):
+    def __str__(self):
+        return self.value
