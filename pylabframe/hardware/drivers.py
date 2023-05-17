@@ -90,6 +90,11 @@ class TektronixScope(device.VisaDevice):
 
 
 class KeysightESA(device.VisaDevice):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.visa_instr.write_termination = '\n'
+        self.visa_instr.read_termination = '\n'
+
     class RunModes(SettingEnum):
         CONTINUOUS = "1"
         SINGLE = "0"
@@ -107,9 +112,9 @@ class KeysightESA(device.VisaDevice):
     stop_frequency = visa_property("sense:freq:stop", rw_conv=float)
     rbw = visa_property("sense:band", rw_conv=float)
 
-    acquisition_time = visa_property("sense:acquisition:time", rw_conv=float)
+    # acquisition_time = visa_property("sense:acquisition:time", rw_conv=float)
+    # record_length = visa_property("sense:acquisition:points", rw_conv=int)
     sweep_time = visa_property("sense:sweep:time", rw_conv=float)
-    record_length = visa_property("sense:acquisition:points", rw_conv=int)
     average_count = visa_property("sense:average:count", rw_conv=int)
 
     y_unit = visa_property("unit:power")
