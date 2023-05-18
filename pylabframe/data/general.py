@@ -149,7 +149,14 @@ class NumericalData:
         plot_y = y_scaling * (apply_data_func(self.data_array) - y_offset)
         plot_x = x_scaling * (self.x_axis - x_offset)
 
-        plot_axis.plot(plot_x, plot_y, **kw)
+        if not np.iscomplexobj(plot_y):
+            plot_axis.plot(plot_x, plot_y, **kw)
+        else:
+            # default for complex plotting: plot both quadratures. No individual control over their appearance
+            # If you want that, use apply_data_func and call the plotting function for each Q individually
+            plot_axis.plot(plot_x, np.real(plot_y), **kw)
+            plot_axis.plot(plot_x, np.imag(plot_y), **kw)
+
         if x_label is None and auto_label and "x_label" in self.metadata:
             x_label = self.metadata["x_label"]
             if "x_unit" in self.metadata:
