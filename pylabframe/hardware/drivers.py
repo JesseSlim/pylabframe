@@ -154,9 +154,6 @@ class KeysightESA(device.VisaDevice):
         self.visa_instr.write_termination = '\n'
         self.visa_instr.read_termination = '\n'
 
-        for mf in self.METADATA_FIELDS:
-            self.metadata_registry[mf] = lambda self=self, mf=mf: getattr(self, mf)
-
     instrument_mode = visa_property("inst:sel", read_conv=InstrumentModes)
     run_mode = visa_property("initiate:continuous", read_conv=RunModes)
 

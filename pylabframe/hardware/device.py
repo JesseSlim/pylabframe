@@ -40,7 +40,21 @@ class Device:
     def __init__(self, id, error_on_double_connect=True, **kw):
         if id in _connected_devices and error_on_double_connect:
             raise RuntimeError(f"Device {id} already connected")
-        self.metadata_registry = {}
+
+        metadata_fields = []
+
+        # combine all default parameters from subclasses
+        # process bottom to top (so subclasses can override params)
+        subclasses = self.__class__.__mro__[::-1]
+        for subcl in subclasses:
+            if hasattr(subcl, "METADATA_FIELDS"):
+                metadata_fields += subcl.METADATA_FIELDS
+
+        # get unique fields
+        metadata_fields = list(dict.fromkeys(metadata_fields))
+
+        for mf in metadata_fields:
+            self.metadata_registry[mf] = lambda self=self, mf=mf: getattr(self, mf)
 
     @classmethod
     def list_available(cls):
