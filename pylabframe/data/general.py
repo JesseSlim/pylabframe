@@ -135,7 +135,9 @@ class NumericalData:
         else:
             raise NotImplementedError(f"No plotting method available for {self.ndim}-dimensional data")
 
-    def plot_1d(self, plot_axis=None, x_label=None, y_label=None, auto_label=True, **kw):
+    def plot_1d(self, plot_axis=None, x_label=None, y_label=None, auto_label=True, apply_data_func=lambda x: x,
+                x_scaling=1., x_offset=0., y_scaling=1., y_offset=0.,
+                **kw):
         # set some defaults
         if 'm' not in kw and 'marker' not in kw:
             kw['marker'] = '.'
@@ -144,7 +146,10 @@ class NumericalData:
             import matplotlib.pyplot as plt
             plot_axis = plt.gca()
 
-        plot_axis.plot(self.x_axis, self.data_array, **kw)
+        plot_y = y_scaling * (apply_data_func(self.data_array) - y_offset)
+        plot_x = x_scaling * (self.x_axis - x_offset)
+
+        plot_axis.plot(plot_x, plot_y, **kw)
         if x_label is None and auto_label and "x_label" in self.metadata:
             x_label = self.metadata["x_label"]
             if "x_unit" in self.metadata:

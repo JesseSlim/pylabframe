@@ -100,20 +100,20 @@ class KeysightESA(visadevice.VisaDevice):
     y_unit = visa_property("unit:power", dtype=YUnits)
     y_scale = visa_property("display:window:trace:y:spacing", dtype=ScaleType)
 
-    start_measurement = visa_command("initiate:immediate")
+    start_trace = visa_command("initiate:immediate")
     # start_measurement_and_wait = visa_command("initiate:immediate", wait_until_done=True)
 
     def initialize_trace_transfer(self):
         self.visa_instr.write("format:data real,64")
         self.visa_instr.write("format:border norm")
 
-    def start_trace(self):
+    def start_single_trace(self):
         self.run_mode = self.RunModes.SINGLE
-        self.start_measurement()
+        self.start_trace()
 
     def acquire_trace(self, trace_num=1, collect_metadata=True):
         self.initialize_trace_transfer()
-        self.start_trace()
+        self.start_single_trace()
         self.wait_until_done()
         raw_data = self.visa_instr.query_binary_values(f"trace:data? trace{trace_num}", datatype="d", is_big_endian=True, container=np.array)
 
@@ -138,3 +138,36 @@ class KeysightESA(visadevice.VisaDevice):
         return data_obj
 
         return raw_data
+
+    ## IQ MODE SETTINGS
+    configure_iq_waveform = visa_command("configure:waveform")
+    iq_bw = visa_property("waveform:dif:bandwidth", dtype=float)
+    iq_acquisition_time = visa_property("sense:waveform:sweep:time", dtype=float)
+
+    def enable_iq_waveform_mode(self):
+        self.instrument_mode = self.InstrumentModes.IQ_ANALYZER
+        self.configure_iq_waveform()
+
+    def acquire_iq_waveform(self, return_complex=True):
+        self.initialize_trace_transfer()
+        self.start_single_trace()
+        self.wait_until_done()
+        raw_data = self.visa_instr.query_binary_values(f"fetch:waveform0?", datatype="d", is_big_endian=True,
+                                                        container=np.array)
+        i_data = raw_data[::2]
+        q_data = raw_data[1::2]
+
+        time_axis = np.linspace(0, self.iq_acquisition_time, len(i_data))
+
+        metadata = {
+            "center_frequency": self.center_frequency,
+            "iq_bw": self.iq_bw
+        }
+
+        if return_complex:
+            c_data = i_data + 1j * q_data
+            data_obj = pylabframe.data.NumericalData(c_data, x_axis=time_axis, axes_names=['time'], metadata=metadata)
+        else:
+            data_obj = pylabframe.data.NumericalData([i_data, q_data], transpose=True, x_axis=time_axis, y_axis=['i', 'q'], axes_names=['time', 'quadrature'], metadata=metadata)
+
+        return data_obj
