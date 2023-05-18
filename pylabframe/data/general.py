@@ -38,11 +38,10 @@ class NumericalData:
             reduced_axes = self.parent.reduced_axes
             sub_axes = []
             sub_axes_names = []
-            parent_red_ax_pos = np.array([a["axis_position"] for a in reduced_axes])
+            parent_red_ax_pos = np.array([a["axis"] for a in reduced_axes])
 
-            # the ordering of array indexing is opposite to the order of the axis list
-            # TODO: evaluate if that's the best ordering
-            slice_list = slice_list[::-1]
+            # the ordering of array indexing is the same as the order of the axis list
+            slice_list = slice_list
 
             for i in range(len(slice_list)):
                 if i < len(self.parent.axes) and self.parent.axes[i] is not None:
@@ -55,21 +54,24 @@ class NumericalData:
                         cur_ax_name = self.parent.axes_names[i]
                     else:
                         cur_ax_name = None
-                    # cur_ax_pos = -np.sum(parent_red_ax_pos >= -i-1) - i - 1
-                    cur_ax_pos = -i - 1  # TODO: fix this to reflect the axes that have already been taken out in the parent
-                    reduced_axes.append({"axis_name": cur_ax_name, "axis_position": cur_ax_pos, "index": slice_list[i], "value": new_ax_or_val})
+                    cur_ax_pos = i  # TODO: fix this to reflect the axes that have already been taken out in the parent
+                    reduced_axes.append({"axis_name": cur_ax_name, "axis": cur_ax_pos, "index": slice_list[i], "value": new_ax_or_val})
                 else:
                     sub_axes.append(new_ax_or_val)
                     if i < len(self.parent.axes_names):
                         sub_axes_names.append(self.parent.axes_names[i])
 
-            sub_data = NumericalData(data_array=sub_array, axes=sub_axes, reduced_axes=reduced_axes, metadata=self.parent.metadata.copy())
+            sub_data = NumericalData(data_array=sub_array, axes=sub_axes, axes_names=sub_axes_names, reduced_axes=reduced_axes, metadata=self.parent.metadata.copy())
 
             return sub_data
 
-    def __init__(self, data_array=None, x_axis=None, y_axis=None, z_axis=None, axes=None, axes_names=None, reduced_axes=None, metadata=None, convert_to_numpy=True):
+    def __init__(self, data_array=None, x_axis=None, y_axis=None, z_axis=None, axes=None, axes_names=None,
+                 reduced_axes=None, metadata=None, convert_to_numpy=True, transpose=False
+                 ):
         if convert_to_numpy:
             data_array = np.asarray(data_array)
+        if transpose:
+            data_array = data_array.T
         self.data_array = data_array
         self.axes = axes if axes is not None else []
         self.reduced_axes = reduced_axes if reduced_axes is not None else []
@@ -156,3 +158,54 @@ class NumericalData:
         if y_label is not None:
             plot_axis.set_ylabel(y_label)
 
+    @classmethod
+    def stack(cls, data_objs, axis=-1, new_axis=None, new_axis_name=None, retain_individual_metadata=False, convert_ax_to_numpy=True):
+        data_arrays = []
+        individual_metadata = {}
+        new_metadata = None
+
+        for o in data_objs:
+            if isinstance(o, NumericalData):
+                data_arrays.append(o.data_array)
+                if new_metadata is None:
+                    new_metadata = o.metadata.copy()
+                if retain_individual_metadata:
+                    individual_metadata[len(data_arrays)-1] = o.metadata
+            else:
+                data_arrays.append(o)
+
+        if new_metadata is None:
+            new_metadata = {}
+
+        if retain_individual_metadata:
+            new_metadata["_individual_metadata"] = individual_metadata
+
+        # stack new data array
+        new_data_array = np.stack(data_arrays, axis=axis)
+
+        # insert new axis
+        if convert_ax_to_numpy and new_axis is not None:
+            new_axis = np.asarray(new_axis)
+        new_axes: list = data_objs[0].axes.copy()
+        axis_shortage = data_objs[0].data_array.ndim - len(new_axes)
+        if axis_shortage > 0:
+            new_axes += [None] * axis_shortage
+
+        ax_insert_index = axis
+        if ax_insert_index < 0:
+            ax_insert_index = len(new_axes) + 1 + ax_insert_index
+        new_axes.insert(ax_insert_index, new_axis)
+
+        # insert new axis name
+        new_axnames: list = data_objs[0].axes_names.copy()
+        axis_shortage = data_objs[0].data_array.ndim - len(new_axnames)
+        if axis_shortage > 0:
+            new_axnames += [None] * axis_shortage
+
+        ax_insert_index = axis
+        if ax_insert_index < 0:
+            ax_insert_index = len(new_axnames) + 1 + ax_insert_index
+        new_axnames.insert(ax_insert_index, new_axis_name)
+
+        stacked_obj = cls(new_data_array, axes=new_axes, axes_names=new_axnames, metadata=new_metadata)
+        return stacked_obj
