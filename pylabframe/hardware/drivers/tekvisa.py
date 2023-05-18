@@ -6,8 +6,8 @@ from pylabframe.hardware.device import str_conv, SettingEnum, intbool_conv
 import pylabframe.data
 
 # helper definition
-visa_property = device.VisaDevice.visa_property
-visa_command = device.VisaDevice.visa_command
+visa_property = visadevice.VisaDevice.visa_property
+visa_command = visadevice.VisaDevice.visa_command
 
 
 class TektronixScope(visadevice.VisaDevice):

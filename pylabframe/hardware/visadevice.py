@@ -40,11 +40,23 @@ class VisaDevice(device.Device):
                     raise e
         return result_code
 
+    DTYPE_CONVERTERS = {
+        bool: (device.intbool_conv, int),
+    }
+
     @classmethod
-    def visa_property(cls, visa_cmd: str, read_only=False, read_conv=str, write_conv=str, rw_conv=None):
+    def visa_property(cls, visa_cmd: str, dtype=None, read_only=False, read_conv=str, write_conv=str, rw_conv=None):
         if rw_conv is not None:
             read_conv = rw_conv
             write_conv = rw_conv
+
+        if dtype is not None:
+            if dtype in VisaDevice.DTYPE_CONVERTERS:
+                read_conv, write_conv = VisaDevice.DTYPE_CONVERTERS[dtype]
+            else:
+                read_conv, write_conv = dtype, dtype
+                if issubclass(dtype, device.SettingEnum):
+                    write_conv = str
 
         def visa_getter(self: VisaDevice):
             # doing this gives us access to object properties (eg channel id) that can be put in the command string

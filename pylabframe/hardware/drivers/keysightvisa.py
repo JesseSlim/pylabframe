@@ -6,8 +6,8 @@ from pylabframe.hardware.device import str_conv, SettingEnum, intbool_conv
 import pylabframe.data
 
 # helper definition
-visa_property = device.VisaDevice.visa_property
-visa_command = device.VisaDevice.visa_command
+visa_property = visadevice.VisaDevice.visa_property
+visa_command = visadevice.VisaDevice.visa_command
 
 
 class KeysightESA(visadevice.VisaDevice):
@@ -75,30 +75,30 @@ class KeysightESA(visadevice.VisaDevice):
         self.visa_instr.write_termination = '\n'
         self.visa_instr.read_termination = '\n'
 
-    instrument_mode = visa_property("inst:sel", read_conv=InstrumentModes)
-    run_mode = visa_property("initiate:continuous", read_conv=RunModes)
+    instrument_mode = visa_property("inst:sel", dtype=InstrumentModes)
+    run_mode = visa_property("initiate:continuous", dtype=RunModes)
 
-    center_frequency = visa_property("sense:freq:center", rw_conv=float)
-    span = visa_property("sense:freq:span", rw_conv=float)
-    start_frequency = visa_property("sense:freq:start", rw_conv=float)
-    stop_frequency = visa_property("sense:freq:stop", rw_conv=float)
-    rbw = visa_property("sense:band", rw_conv=float)
-    vbw = visa_property("sense:band:video", rw_conv=float)
-    auto_vbw = visa_property("sense:band:video:auto", read_conv=intbool_conv, write_conv=int)
+    center_frequency = visa_property("sense:freq:center", dtype=float)
+    span = visa_property("sense:freq:span", dtype=float)
+    start_frequency = visa_property("sense:freq:start", dtype=float)
+    stop_frequency = visa_property("sense:freq:stop", dtype=float)
+    rbw = visa_property("sense:band", dtype=float)
+    vbw = visa_property("sense:band:video", dtype=float)
+    auto_vbw = visa_property("sense:band:video:auto", dtype=bool)
 
-    detector = visa_property("sense:detector:trace", read_conv=DetectorModes)
+    detector = visa_property("sense:detector:trace", dtype=DetectorModes)
 
     # acquisition_time = visa_property("sense:acquisition:time", rw_conv=float)
     # record_length = visa_property("sense:acquisition:points", rw_conv=int)
-    sweep_time = visa_property("sense:sweep:time", rw_conv=float)
-    record_length = visa_property("sense:sweep:points", rw_conv=int)
-    trace_average_count = visa_property("sense:average:count", rw_conv=int)
-    trace_averaging = visa_property("sense:average:state", read_conv=intbool_conv, write_conv=int)
-    trace_average_mode = visa_property("sense:average:type", read_conv=TraceAverageModes)
-    auto_trace_average_mode = visa_property("sense:average:type:auto", read_conv=intbool_conv, write_conv=int)
+    sweep_time = visa_property("sense:sweep:time", dtype=float)
+    record_length = visa_property("sense:sweep:points", dtype=int)
+    trace_average_count = visa_property("sense:average:count", dtype=int)
+    trace_averaging = visa_property("sense:average:state", dtype=bool)
+    trace_average_mode = visa_property("sense:average:type", dtype=TraceAverageModes)
+    auto_trace_average_mode = visa_property("sense:average:type:auto", dtype=bool)
 
-    y_unit = visa_property("unit:power", read_conv=YUnits)
-    y_scale = visa_property("display:window:trace:y:spacing", read_conv=ScaleType)
+    y_unit = visa_property("unit:power", dtype=YUnits)
+    y_scale = visa_property("display:window:trace:y:spacing", dtype=ScaleType)
 
     start_measurement = visa_command("initiate:immediate")
     # start_measurement_and_wait = visa_command("initiate:immediate", wait_until_done=True)

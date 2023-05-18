@@ -22,10 +22,9 @@ def _connect_device(id):
 
     if "." in device_class:
         split_class = device_class.split(".")
-        device_inner_class = split_class[-1]
         driver_file = split_class[:-1]
         driver_file = ".".join(driver_file)
-        eval(f"from .drivers.{driver_file} import {device_inner_class}")
+        exec(f"from .drivers import {driver_file}")
 
     device_class = eval(f"drivers.{device_class}")
 
@@ -58,6 +57,7 @@ class Device:
         # get unique fields
         metadata_fields = list(dict.fromkeys(metadata_fields))
 
+        self.metadata_registry = {}
         for mf in metadata_fields:
             self.metadata_registry[mf] = lambda self=self, mf=mf: getattr(self, mf)
 
