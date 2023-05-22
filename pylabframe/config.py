@@ -1,5 +1,4 @@
-"""
-Current config file format:
+r"""Current config file format:
 
 --- toml file contents ---
 
@@ -20,6 +19,7 @@ root_dir = 'C:\Users\labuser\Data'
 --- end toml file contents ---
 
 """
+
 try:
     import tomllib
 except ModuleNotFoundError:
