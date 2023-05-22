@@ -1,1 +1,1 @@
-from .general import NumericalData
+from .core import NumericalData

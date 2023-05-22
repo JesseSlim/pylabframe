@@ -18,6 +18,7 @@ classifiers = [
 ]
 dependencies = [
     "numpy",
+    "tomli; python_version < '3.11'"
 ]
 
 [project.urls]

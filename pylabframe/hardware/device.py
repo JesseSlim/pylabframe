@@ -15,11 +15,14 @@ def get_device(id):
 
 def _connect_device(id):
     from . import drivers
-    hw_conf = read_hw_config()
-    device_parts = hw_conf[id].split("@")
-    device_class = device_parts[0]
-    device_address = "@".join(device_parts[1:])
+    hw_conf = pylabframe.config.get_settings('devices')
+    device_settings = hw_conf[id]
+    device_class = device_settings['driver']
 
+    # remove driver from the device settings dict -- the remaining parameters are fed to the constructor
+    del device_settings['driver']
+
+    # import from sub-file
     if "." in device_class:
         split_class = device_class.split(".")
         driver_file = split_class[:-1]
@@ -28,16 +31,9 @@ def _connect_device(id):
 
     device_class = eval(f"drivers.{device_class}")
 
-    dev = device_class(id, device_address)
+    dev = device_class(id, **device_settings)
 
     return dev
-
-
-def read_hw_config(computer_name=None):
-    if computer_name is None:
-        computer_name = pylabframe.general.get_computer_name()
-
-    return pylabframe.general.load_config_file(f"hardware/{computer_name}")
 
 
 class Device:
@@ -75,6 +71,8 @@ class Device:
 
         return metadata_collection
 
+
+## Functions and classes that facilitate data conversion to and from SCPI strings
 
 def str_conv(s):
     return s.replace('"', '')

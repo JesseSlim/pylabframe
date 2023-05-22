@@ -1,0 +1,13 @@
+computer_name = "jesse-office"
+
+[data]
+root_dir = 'C:\Users\uqjslim\OneDrive - The University of Queensland\PostdocUQ\Measurements'
+
+[devices]
+    [devices.scope1]
+    driver = "tekvisa.TektronixScope"
+    address = "USBblabla"
+
+    [devices.esa]
+    driver = "keysightvisa.KeysightESA"
+    address = "blabla"
