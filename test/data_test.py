@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 
 import pylabframe as lab
 import pylabframe.data
+from pylabframe.hardware.drivers import tekvisa
 
 test = lab.data.NumericalData(
     [np.sin(np.linspace(0,20)),np.sin(np.linspace(0,20))*1.5, np.sin(np.linspace(0,20))*2.],
@@ -26,3 +27,13 @@ tt3.plot()
 
 from pylabframe.data import NumericalData
 restack = NumericalData.stack([tt1, tt2, tt3], new_axis=[6,7,8], new_axis_name="new_wavelength")
+
+restack.metadata['setting1'] = 42.6
+restack.metadata['setting2'] = 'volt'
+restack.metadata['settings444'] = {'eggd': 5, 'cool': {
+    'very': tekvisa.TektronixScope.RunModes.CONTINUOUS
+}}
+
+
+restack.save_npz("test/restack.npz")
+restack_loaded = lab.data.NumericalData.load_npz('test/restack.npz')

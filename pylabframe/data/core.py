@@ -1,8 +1,12 @@
 import numpy as np
+import copy
+from enum import Enum
+
+from .. import util
 
 class NumericalData:
     """
-    Holds numerical data in data_array. The last axis is understood to be the x-axis, the y-axis is the second to last axis and so forth.
+    Holds numerical data in data_array. The first axis is understood to be the x-axis, the y-axis is the second axis and so forth.
     """
 
     class IndexLocator:
@@ -117,16 +121,47 @@ class NumericalData:
 
     # patch all calls that don't work on the NumericalData object directly through to the underlying data_array
     def __getattr__(self, item):
-        return getattr(self.data_array, item)
+        if hasattr(self.data_array, item):
+            return getattr(self.data_array, item)
+        else:
+            raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{item}' and neither does the underlying data_array")
 
-    # @property
-    # def ndim(self):
-    #     return self.data_array.ndim
-    #
-    # @property
-    # def shape(self):
-    #     return self.data_array.shape
+    # saving functions
+    # ================
+    def save_npz(self, file, stringify_enums=True):
+        num_axes = len(self.axes) if self.axes is not None else 0
+        if num_axes > 0:
+            ax_dict = {f"axis_{i}": self.axes[i] for i in range(num_axes)}
+        else:
+            ax_dict = {}
 
+        metadata = copy.deepcopy(self.metadata)
+        if stringify_enums:
+            metadata = util.map_nested_dict(
+                lambda x: f"{x.__class__.__name__}.{x.name}" if isinstance(x, Enum) else x,
+                metadata
+            )
+
+        np.savez(file,
+                 data_array=self.data_array, num_axes=num_axes, **ax_dict,
+                 axes_data={'axes_names': self.axes_names, 'reduced_axes': self.reduced_axes},
+                 metadata=metadata
+                 )
+
+    @classmethod
+    def load_npz(cls, file):
+        npz_data = np.load(file, allow_pickle=True)
+        data_array = npz_data['data_array']
+        num_axes = npz_data['num_axes'].item()  # scalar values are saved as a 0-dimensional array, need to extract
+        axes_data = npz_data['axes_data'].item()
+        metadata = npz_data['metadata'].item()
+
+        axes = [npz_data[f'axis_{i}'] for i in range(num_axes)]
+
+        return cls(data_array, axes=axes, axes_names=axes_data['axes_names'], reduced_axes=axes_data['reduced_axes'], metadata=metadata)
+
+    # plotting functions
+    # ==================
     def plot(self, plot_axis=None, x_label=None, y_label=None, auto_label=True, **kw):
         if self.ndim == 1:
             return self.plot_1d(plot_axis, x_label=None, y_label=None, auto_label=auto_label, **kw)
@@ -170,8 +205,54 @@ class NumericalData:
         if y_label is not None:
             plot_axis.set_ylabel(y_label)
 
+    def plot_2d(self, plot_axis, x_label=None, y_label=None, z_label=None, auto_label=True, apply_data_func=lambda x: x,
+                x_scaling=1., x_offset=0., y_scaling=1., y_offset=0., z_scaling=1., z_offset=0.,
+                add_colorbar=True, cax=None, fix_mesh=True, rasterized=True, cbar_kw={},
+                **kw):
+
+        if plot_axis is None:
+            import matplotlib.pyplot as plt
+            plot_axis = plt.gca()
+
+        plot_x = x_scaling * (self.x_axis - x_offset)
+        plot_y = y_scaling * (self.y_axis - y_offset)
+        plot_z = z_scaling * (apply_data_func(self.data_array) - z_offset)
+        plot_z = plot_z.T
+
+        im = plot_2d_data(plot_x, plot_y, plot_z, plot_axis, fix_mesh=fix_mesh, rasterized=rasterized, **kw)
+
+        for a in ['x', 'y', 'z']:
+            this_label = locals()[f'{a}_label']
+            if this_label is None and auto_label and f'{a}_label' in self.metadata:
+                this_label = self.metadata[f'{a}_label']
+                if f'{a}_unit' in self.metadata:
+                    this_unit = self.metadata[f'{a}_unit']
+                    this_label += f" ({this_unit})"
+                locals()[f'{a}_label'] = this_label
+
+        if x_label is not None:
+            plot_axis.set_xlabel(x_label)
+        if y_label is not None:
+            plot_axis.set_ylabel(y_label)
+
+        if add_colorbar:
+            import matplotlib.pyplot as plt
+            plt.colorbar(im, cax=cax, ax=plot_axis, label=z_label, **cbar_kw)
+
+        return im
+
     @classmethod
     def stack(cls, data_objs, axis=-1, new_axis=None, new_axis_name=None, retain_individual_metadata=False, convert_ax_to_numpy=True):
+        """
+        Combine data objects into a single object of higher dimensionality
+        :param data_objs:
+        :param axis:
+        :param new_axis:
+        :param new_axis_name:
+        :param retain_individual_metadata:
+        :param convert_ax_to_numpy:
+        :return:
+        """
         data_arrays = []
         individual_metadata = {}
         new_metadata = None
@@ -221,3 +302,33 @@ class NumericalData:
 
         stacked_obj = cls(new_data_array, axes=new_axes, axes_names=new_axnames, metadata=new_metadata)
         return stacked_obj
+
+# plotting utility functions
+# ==========================
+
+def plot_2d_data(x, y, z, ax=None, fix_mesh=True, rasterized=True, **kw):
+    plotdata = [x, y, z]
+
+    if fix_mesh:
+        # the X and Y arrays that go into pcolormesh indicate the corners of every square that gets a color
+        # specified by C
+        # however, our dataArray specified the values at the center values given by X & Y
+        # so we need to convert this into corners locations: take the midpoints of the axis points and add
+        # corners to the beginning and end of the axis
+        plotdata_fixed = []
+        for i in range(2):
+            center_locs = plotdata[i]
+            midpoints = (center_locs[:-1] + center_locs[1:]) / 2
+            left_corner = 1.5 * center_locs[0] - 0.5 * center_locs[1]
+            right_corner = 1.5 * center_locs[-1] - 0.5 * center_locs[-2]
+
+            corners = np.concatenate(([left_corner], midpoints, [right_corner]))
+            plotdata_fixed.append(corners)
+
+        plotdata_fixed.append(plotdata[-1])
+        plotdata = plotdata_fixed
+
+    im = ax.pcolormesh(*plotdata, rasterized=rasterized, **kw)
+
+    return im
+
