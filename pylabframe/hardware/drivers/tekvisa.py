@@ -41,18 +41,18 @@ class TektronixScope(visadevice.VisaDevice):
     waveform_x_unit = visa_property("wfmoutpre:xunit", read_only=True, read_conv=str_conv)
 
     def initialize_waveform_transfer(self, channel_id, start=1, stop=None):
-        self.visa_instr.write(f"data:source ch{channel_id}")
-        self.visa_instr.write(f"data:start {start}")
+        self.instr.write(f"data:source ch{channel_id}")
+        self.instr.write(f"data:start {start}")
         if stop is None:
             # default to full waveform
             stop = self.record_length
-        self.visa_instr.write(f"data:stop {stop}")
-        self.visa_instr.write("data:encdg fast")
-        self.visa_instr.write("data:width 2")
-        self.visa_instr.write("header 0")
+        self.instr.write(f"data:stop {stop}")
+        self.instr.write("data:encdg fast")
+        self.instr.write("data:width 2")
+        self.instr.write("header 0")
 
     def do_waveform_transfer(self):
-        wfm_raw = self.visa_instr.query_binary_values("curve?", datatype='h', is_big_endian=True, container=np.array)
+        wfm_raw = self.instr.query_binary_values("curve?", datatype='h', is_big_endian=True, container=np.array)
         wfm_converted = (wfm_raw * self.waveform_y_multiplier) + self.waveform_y_zero
         time_axis = (np.arange(self.waveform_points) * self.waveform_x_increment) + self.waveform_x_zero
 
@@ -76,7 +76,7 @@ class TektronixScope(visadevice.VisaDevice):
             self.channel_id = channel
             self.query_params = {'channel_id':  channel}
             self.device: "TektronixScope" = device
-            self.visa_instr = self.device.visa_instr
+            self.instr = self.device.instr
 
         y_scale = visa_property("ch{channel_id}:scale", rw_conv=float)
         offset = visa_property("ch{channel_id}:offset", rw_conv=float)

@@ -72,8 +72,8 @@ class KeysightESA(visadevice.VisaDevice):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.visa_instr.write_termination = '\n'
-        self.visa_instr.read_termination = '\n'
+        self.instr.write_termination = '\n'
+        self.instr.read_termination = '\n'
 
     instrument_mode = visa_property("inst:sel", dtype=InstrumentModes)
     run_mode = visa_property("initiate:continuous", dtype=RunModes)
@@ -104,8 +104,8 @@ class KeysightESA(visadevice.VisaDevice):
     # start_measurement_and_wait = visa_command("initiate:immediate", wait_until_done=True)
 
     def initialize_trace_transfer(self):
-        self.visa_instr.write("format:data real,64")
-        self.visa_instr.write("format:border norm")
+        self.instr.write("format:data real,64")
+        self.instr.write("format:border norm")
 
     def start_single_trace(self):
         self.run_mode = self.RunModes.SINGLE
@@ -115,7 +115,7 @@ class KeysightESA(visadevice.VisaDevice):
         self.initialize_trace_transfer()
         self.start_single_trace()
         self.wait_until_done()
-        raw_data = self.visa_instr.query_binary_values(f"trace:data? trace{trace_num}", datatype="d", is_big_endian=True, container=np.array)
+        raw_data = self.instr.query_binary_values(f"trace:data? trace{trace_num}", datatype="d", is_big_endian=True, container=np.array)
 
         if collect_metadata:
             metadata = self.collect_metadata()
@@ -152,8 +152,8 @@ class KeysightESA(visadevice.VisaDevice):
         self.initialize_trace_transfer()
         self.start_single_trace()
         self.wait_until_done()
-        raw_data = self.visa_instr.query_binary_values(f"fetch:waveform0?", datatype="d", is_big_endian=True,
-                                                        container=np.array)
+        raw_data = self.instr.query_binary_values(f"fetch:waveform0?", datatype="d", is_big_endian=True,
+                                                  container=np.array)
         i_data = raw_data[::2]
         q_data = raw_data[1::2]
 

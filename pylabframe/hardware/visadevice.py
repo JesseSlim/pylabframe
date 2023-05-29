@@ -7,18 +7,18 @@ class VisaDevice(device.Device):
     def __init__(self, id, address, **kw):
         super().__init__(id, **kw)
         self.address = address
-        self.visa_instr: pyvisa.resources.messagebased.MessageBasedResource = _visa_rm.open_resource(address)
+        self.instr: pyvisa.resources.messagebased.MessageBasedResource = _visa_rm.open_resource(address)
 
     def __del__(self):
-        self.visa_instr.close()
-        del self.visa_instr
+        self.instr.close()
+        del self.instr
 
     @classmethod
     def list_available(cls):
         return list(_visa_rm.list_resources())
 
     def get_identifier(self, sanitize=True):
-        response = self.visa_instr.query("*IDN?")
+        response = self.instr.query("*IDN?")
         if sanitize:
             response = response.strip()
         return response
@@ -28,11 +28,11 @@ class VisaDevice(device.Device):
             cmd_string = f"{visa_cmd};*OPC?"
         else:
             cmd_string = "*OPC?"
-        self.visa_instr.write(cmd_string)
+        self.instr.write(cmd_string)
         is_done = False
         while not is_done:
             try:
-                result_code = self.visa_instr.read()
+                result_code = self.instr.read()
                 is_done = True
             except pyvisa.VisaIOError as e:
                 if e.error_code != pyvisa.constants.StatusCode.error_timeout:
@@ -63,7 +63,7 @@ class VisaDevice(device.Device):
             fmt_visa_cmd = visa_cmd
             if hasattr(self, "query_params"):
                 fmt_visa_cmd = fmt_visa_cmd.format(**self.query_params)
-            response = self.visa_instr.query(f"{fmt_visa_cmd}?")
+            response = self.instr.query(f"{fmt_visa_cmd}?")
             response = read_conv(response.strip())
             return response
 
@@ -73,7 +73,7 @@ class VisaDevice(device.Device):
                 if hasattr(self, "query_params"):
                     fmt_visa_cmd = fmt_visa_cmd.format(**self.query_params)
                 cmd = f"{fmt_visa_cmd} {write_conv(value)}"
-                self.visa_instr.write(cmd)
+                self.instr.write(cmd)
         else:
             visa_setter = None
 
@@ -91,6 +91,6 @@ class VisaDevice(device.Device):
             if wait_until_done:
                 return self.wait_until_done(fmt_visa_cmd)
             else:
-                return self.visa_instr.write(fmt_visa_cmd)
+                return self.instr.write(fmt_visa_cmd)
 
         return visa_executer
