@@ -1,8 +1,10 @@
 import numpy as np
+import scipy.optimize
 import copy
 from enum import Enum
 
 from .. import util
+from . import fitters
 
 class NumericalData:
     """
@@ -126,6 +128,69 @@ class NumericalData:
         else:
             raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{item}' and neither does the underlying data_array")
 
+    @classmethod
+    def stack(cls, data_objs, axis=-1, new_axis=None, new_axis_name=None, retain_individual_metadata=False,
+              convert_ax_to_numpy=True):
+        """
+        Combine data objects into a single object of higher dimensionality
+        :param data_objs:
+        :param axis:
+        :param new_axis:
+        :param new_axis_name:
+        :param retain_individual_metadata:
+        :param convert_ax_to_numpy:
+        :return:
+        """
+        data_arrays = []
+        individual_metadata = {}
+        new_metadata = None
+
+        for o in data_objs:
+            if isinstance(o, NumericalData):
+                data_arrays.append(o.data_array)
+                if new_metadata is None:
+                    new_metadata = o.metadata.copy()
+                if retain_individual_metadata:
+                    individual_metadata[len(data_arrays) - 1] = o.metadata
+            else:
+                data_arrays.append(o)
+
+        if new_metadata is None:
+            new_metadata = {}
+
+        if retain_individual_metadata:
+            new_metadata["_individual_metadata"] = individual_metadata
+
+        # stack new data array
+        new_data_array = np.stack(data_arrays, axis=axis)
+
+        # insert new axis
+        if convert_ax_to_numpy and new_axis is not None:
+            new_axis = np.asarray(new_axis)
+        new_axes: list = data_objs[0].axes.copy()
+        axis_shortage = data_objs[0].data_array.ndim - len(new_axes)
+        if axis_shortage > 0:
+            new_axes += [None] * axis_shortage
+
+        ax_insert_index = axis
+        if ax_insert_index < 0:
+            ax_insert_index = len(new_axes) + 1 + ax_insert_index
+        new_axes.insert(ax_insert_index, new_axis)
+
+        # insert new axis name
+        new_axnames: list = data_objs[0].axes_names.copy()
+        axis_shortage = data_objs[0].data_array.ndim - len(new_axnames)
+        if axis_shortage > 0:
+            new_axnames += [None] * axis_shortage
+
+        ax_insert_index = axis
+        if ax_insert_index < 0:
+            ax_insert_index = len(new_axnames) + 1 + ax_insert_index
+        new_axnames.insert(ax_insert_index, new_axis_name)
+
+        stacked_obj = cls(new_data_array, axes=new_axes, axes_names=new_axnames, metadata=new_metadata)
+        return stacked_obj
+
     # saving functions
     # ================
     def save_npz(self, file, stringify_enums=True):
@@ -241,67 +306,19 @@ class NumericalData:
 
         return im
 
-    @classmethod
-    def stack(cls, data_objs, axis=-1, new_axis=None, new_axis_name=None, retain_individual_metadata=False, convert_ax_to_numpy=True):
-        """
-        Combine data objects into a single object of higher dimensionality
-        :param data_objs:
-        :param axis:
-        :param new_axis:
-        :param new_axis_name:
-        :param retain_individual_metadata:
-        :param convert_ax_to_numpy:
-        :return:
-        """
-        data_arrays = []
-        individual_metadata = {}
-        new_metadata = None
+    # fitting functions
+    # =================
+    def fit(self, fit_func_def: fitters.FitterDefinition, p0=None, **kw):
+        # if issubclass(fit_func_def, fitters.FitterDefinition):
+        fit_func = fit_func_def.func
+        if p0 is None:
+            p0 = fit_func_def.guesser(self)
 
-        for o in data_objs:
-            if isinstance(o, NumericalData):
-                data_arrays.append(o.data_array)
-                if new_metadata is None:
-                    new_metadata = o.metadata.copy()
-                if retain_individual_metadata:
-                    individual_metadata[len(data_arrays)-1] = o.metadata
-            else:
-                data_arrays.append(o)
+        popt, pcov, infodict, mesg, ier = scipy.optimize.curve_fit(fit_func, self.x_axis, self.data_array, p0=p0, full_output=True, **kw)
 
-        if new_metadata is None:
-            new_metadata = {}
+        popt_dict = dict(zip(fit_func_def.param_names, popt))
+        return fitters.FitResult(popt_dict, pcov, fit_func, infodict)
 
-        if retain_individual_metadata:
-            new_metadata["_individual_metadata"] = individual_metadata
-
-        # stack new data array
-        new_data_array = np.stack(data_arrays, axis=axis)
-
-        # insert new axis
-        if convert_ax_to_numpy and new_axis is not None:
-            new_axis = np.asarray(new_axis)
-        new_axes: list = data_objs[0].axes.copy()
-        axis_shortage = data_objs[0].data_array.ndim - len(new_axes)
-        if axis_shortage > 0:
-            new_axes += [None] * axis_shortage
-
-        ax_insert_index = axis
-        if ax_insert_index < 0:
-            ax_insert_index = len(new_axes) + 1 + ax_insert_index
-        new_axes.insert(ax_insert_index, new_axis)
-
-        # insert new axis name
-        new_axnames: list = data_objs[0].axes_names.copy()
-        axis_shortage = data_objs[0].data_array.ndim - len(new_axnames)
-        if axis_shortage > 0:
-            new_axnames += [None] * axis_shortage
-
-        ax_insert_index = axis
-        if ax_insert_index < 0:
-            ax_insert_index = len(new_axnames) + 1 + ax_insert_index
-        new_axnames.insert(ax_insert_index, new_axis_name)
-
-        stacked_obj = cls(new_data_array, axes=new_axes, axes_names=new_axnames, metadata=new_metadata)
-        return stacked_obj
 
 # plotting utility functions
 # ==========================

@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 import pylabframe as lab
 import pylabframe.data
 from pylabframe.hardware.drivers import tekvisa
+from pylabframe.data import fitters
 
 test = lab.data.NumericalData(
     [np.sin(np.linspace(0,20)),np.sin(np.linspace(0,20))*1.5, np.sin(np.linspace(0,20))*2.],
@@ -37,3 +38,16 @@ restack.metadata['settings444'] = {'eggd': 5, 'cool': {
 
 restack.save_npz("test/restack.npz")
 restack_loaded = lab.data.NumericalData.load_npz('test/restack.npz')
+
+fit_x = np.linspace(-10,10)
+lor_data = fitters.Lorentzian.func(fit_x, 2., 0.5, 1.3, 0.9) + np.random.normal(0, 0.05, fit_x.shape)
+
+plt.figure()
+lor_obj = NumericalData(lor_data, x_axis=fit_x)
+lor_obj.plot()
+
+fr = lor_obj.fit(fitters.Lorentzian)
+
+import scipy.optimize
+aa = scipy.optimize.curve_fit(fitters.Lorentzian.func, lor_obj.x_axis, lor_obj.data_array, p0=None, full_output=True)
+
