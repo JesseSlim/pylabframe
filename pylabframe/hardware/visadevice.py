@@ -45,7 +45,7 @@ class VisaDevice(device.Device):
     }
 
     @classmethod
-    def visa_property(cls, visa_cmd: str, dtype=None, read_only=False, read_conv=str, write_conv=str, rw_conv=None):
+    def visa_property(cls, visa_cmd: str, dtype=None, read_only=False, read_conv=str, write_conv=str, rw_conv=None, access_guard=None):
         if rw_conv is not None:
             read_conv = rw_conv
             write_conv = rw_conv
@@ -59,9 +59,12 @@ class VisaDevice(device.Device):
                     write_conv = str
 
         def visa_getter(self: VisaDevice):
-            # doing this gives us access to object properties (eg channel id) that can be put in the command string
+            if access_guard is not None:
+                access_guard(self)
+
             fmt_visa_cmd = visa_cmd
             if hasattr(self, "query_params"):
+                # doing this gives us access to object properties (eg channel id) that can be put in the command string
                 fmt_visa_cmd = fmt_visa_cmd.format(**self.query_params)
             response = self.instr.query(f"{fmt_visa_cmd}?")
             response = read_conv(response.strip())
@@ -69,6 +72,9 @@ class VisaDevice(device.Device):
 
         if not read_only:
             def visa_setter(self: VisaDevice, value):
+                if access_guard is not None:
+                    access_guard(self)
+
                 fmt_visa_cmd = visa_cmd
                 if hasattr(self, "query_params"):
                     fmt_visa_cmd = fmt_visa_cmd.format(**self.query_params)
