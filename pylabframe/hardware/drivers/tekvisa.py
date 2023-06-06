@@ -29,6 +29,11 @@ class TektronixScope(visadevice.VisaDevice):
     running = visa_property("acquire:state", read_conv=intbool_conv, write_conv=int)
     x_scale = visa_property("horizontal:scale", rw_conv=float)
 
+    def trigger_single_acquisition(self):
+        # (I think there are better/more specific commands to do this, but it works)
+        self.instr.write("fpanel:press single")
+        self.instr.write("fpanel:press forcetrig")
+
     # waveform transfer properties
     waveform_points = visa_property("wfmoutpre:nr_pt", read_only=True, read_conv=int)
     waveform_y_multiplier = visa_property("wfmoutpre:ymult", read_only=True, read_conv=float)
@@ -53,7 +58,7 @@ class TektronixScope(visadevice.VisaDevice):
 
     def do_waveform_transfer(self):
         wfm_raw = self.instr.query_binary_values("curve?", datatype='h', is_big_endian=True, container=np.array)
-        wfm_converted = (wfm_raw * self.waveform_y_multiplier) + self.waveform_y_zero
+        wfm_converted = ((wfm_raw - self.waveform_y_offset_levels) * self.waveform_y_multiplier) + self.waveform_y_zero
         time_axis = (np.arange(self.waveform_points) * self.waveform_x_increment) + self.waveform_x_zero
 
         metadata = {
