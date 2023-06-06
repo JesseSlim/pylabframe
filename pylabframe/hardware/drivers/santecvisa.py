@@ -3,11 +3,8 @@ from enum import Enum
 
 from pylabframe.hardware import device, visadevice
 from pylabframe.hardware.device import str_conv, SettingEnum, intbool_conv
+from pylabframe.hardware.visadevice import visa_property, visa_command
 import pylabframe.data
-
-# helper definition
-visa_property = visadevice.VisaDevice.visa_property
-visa_command = visadevice.VisaDevice.visa_command
 
 
 class TSL(visadevice.VisaDevice):
