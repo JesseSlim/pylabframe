@@ -60,7 +60,7 @@ class KeysightESA(visadevice.VisaDevice):
         "vbw",
         "detector",
         "sweep_time",
-        "record_length",
+        "trace_points",
         "trace_averaging",
         "trace_average_count",
         "trace_average_mode",
@@ -81,13 +81,16 @@ class KeysightESA(visadevice.VisaDevice):
         if self.instrument_mode != self.InstrumentModes.SPECTRUM_ANALYZER:
             raise RuntimeError("Instrument is not in spectrum analyzer mode")
 
+    # access guard shorthands
+    SA_visa_property = lambda *args, access_guard=require_sa_mode, **kw: visa_property(*args, **kw,
+                                                                                       access_guard=access_guard)
+    IQ_visa_property = lambda *args, access_guard=require_iq_mode, **kw: visa_property(*args, **kw,
+                                                                                       access_guard=access_guard)
+
     instrument_mode = visa_property("inst:sel", dtype=InstrumentModes)
     run_mode = visa_property("initiate:continuous", dtype=RunModes)
 
     center_frequency = visa_property("sense:freq:center", dtype=float)
-
-    # spectrum analyzer mode properties
-    SA_visa_property = lambda *args, access_guard=require_sa_mode, **kw: visa_property(*args, **kw, access_guard=access_guard)
 
     span = SA_visa_property("sense:freq:span", dtype=float)
     start_frequency = SA_visa_property("sense:freq:start", dtype=float)
@@ -98,10 +101,8 @@ class KeysightESA(visadevice.VisaDevice):
 
     detector = SA_visa_property("sense:detector:trace", dtype=DetectorModes)
 
-    # acquisition_time = visa_property("sense:acquisition:time", rw_conv=float)
-    # record_length = visa_property("sense:acquisition:points", rw_conv=int)
     sweep_time = SA_visa_property("sense:sweep:time", dtype=float)
-    record_length = SA_visa_property("sense:sweep:points", dtype=int)
+    trace_points = SA_visa_property("sense:sweep:points", dtype=int)
     trace_average_count = SA_visa_property("sense:average:count", dtype=int)
     trace_averaging = SA_visa_property("sense:average:state", dtype=bool)
     trace_average_mode = SA_visa_property("sense:average:type", dtype=TraceAverageModes)
@@ -121,7 +122,7 @@ class KeysightESA(visadevice.VisaDevice):
         self.run_mode = self.RunModes.SINGLE
         self.start_trace()
 
-    def acquire_trace(self, trace_num=1, collect_metadata=True):
+    def acquire_trace(self, trace_num=1, collect_metadata=True, psd=False):
         self.initialize_trace_transfer()
         self.start_single_trace()
         self.wait_until_done()
@@ -134,24 +135,29 @@ class KeysightESA(visadevice.VisaDevice):
 
         if self.span == 0.0:
             # we're zero-spanning, x-axis is time axis
-            x_axis = np.linspace(0.0, self.sweep_time, num=self.record_length)
+            x_axis = np.linspace(0.0, self.sweep_time, num=self.trace_points)
             metadata["x_unit"] = 's'
             metadata['x_label'] = 'time'
         else:
-            x_axis = np.linspace(self.start_frequency, self.stop_frequency, num=self.record_length)
+            x_axis = np.linspace(self.start_frequency, self.stop_frequency, num=self.trace_points)
             metadata["x_unit"] = 'Hz'
             metadata["x_label"] = "frequency"
 
         metadata["y_label"] = 'signal'
 
-        data_obj = pylabframe.data.NumericalData(raw_data, x_axis=x_axis, metadata=metadata)
+        if psd:
+            sig_power = 1e3 * np.power(10., raw_data / 10.0)
+            sig_psd = sig_power / self.rbw
+            trace_sig = sig_psd
+            metadata["y_unit"] = 'W/Hz'
+        else:
+            trace_sig = raw_data
+            metadata["y_unit"] = 'dBm'
+
+        data_obj = pylabframe.data.NumericalData(trace_sig, x_axis=x_axis, metadata=metadata)
         return data_obj
 
-        return raw_data
-
     ## IQ MODE SETTINGS
-    IQ_visa_property = lambda *args, access_guard=require_iq_mode, **kw: visa_property(*args, **kw, access_guard=access_guard)
-
     configure_iq_waveform = visa_command("configure:waveform")
     iq_bw = IQ_visa_property("waveform:dif:bandwidth", dtype=float)
     iq_acquisition_time = IQ_visa_property("sense:waveform:sweep:time", dtype=float)
@@ -183,3 +189,31 @@ class KeysightESA(visadevice.VisaDevice):
             data_obj = pylabframe.data.NumericalData([i_data, q_data], transpose=True, x_axis=time_axis, y_axis=['i', 'q'], axes_names=['time', 'quadrature'], metadata=metadata)
 
         return data_obj
+
+    ## COMPLETE MEASUREMENT FUNCTIONS
+    # ===============================
+
+    def measure_spectrum(
+            self, spectrum_center_freq, spectrum_span, points, avgs=100, rbw=None, vbw=None, average_mode=TraceAverageModes.RMS,
+            esa_detector=DetectorModes.AVERAGE
+    ):
+        self.instrument_mode = self.InstrumentModes.SPECTRUM_ANALYZER
+        self.span = spectrum_span
+        self.center_frequency = spectrum_center_freq
+        self.trace_points = points
+        self.trace_average_mode = average_mode
+        self.trace_average_count = avgs
+        self.trace_averaging = True
+        self.detector = esa_detector
+        if rbw is not None:
+            if rbw is True:
+                self.rbw = spectrum_span / points
+            else:
+                self.rbw = rbw
+        if vbw is not None:
+            if vbw is True:
+                self.vbw = spectrum_span / points
+            else:
+                self.vbw = vbw
+
+        return self.acquire_trace()

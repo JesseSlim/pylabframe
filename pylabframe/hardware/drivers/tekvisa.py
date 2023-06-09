@@ -21,7 +21,7 @@ class TektronixScope(visadevice.VisaDevice):
         self.channels: list[TektronixScope.Channel] = [self.Channel(i+1, self) for i in range(self.NUM_CHANNELS)]
 
     # global scpi properties
-    record_length = visa_property("horizontal:recordlength", rw_conv=int)
+    trace_points = visa_property("horizontal:recordlength", rw_conv=int)
     run_mode = visa_property("acquire:stopafter", read_conv=RunModes)
     running = visa_property("acquire:state", read_conv=intbool_conv, write_conv=int)
     x_scale = visa_property("horizontal:scale", rw_conv=float)
@@ -47,7 +47,7 @@ class TektronixScope(visadevice.VisaDevice):
         self.instr.write(f"data:start {start}")
         if stop is None:
             # default to full waveform
-            stop = self.record_length
+            stop = self.trace_points
         self.instr.write(f"data:stop {stop}")
         self.instr.write("data:encdg fast")
         self.instr.write("data:width 2")
