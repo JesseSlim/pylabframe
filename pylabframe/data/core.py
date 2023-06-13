@@ -312,7 +312,7 @@ class NumericalData:
         # if issubclass(fit_func_def, fitters.FitterDefinition):
         fit_func = fit_func_def.func
         if p0 is None:
-            p0 = fit_func_def.guesser(self)
+            p0 = fit_func_def.guess_func(self)
 
         popt, pcov, infodict, mesg, ier = scipy.optimize.curve_fit(fit_func, self.x_axis, self.data_array, p0=p0, full_output=True, **kw)
 
