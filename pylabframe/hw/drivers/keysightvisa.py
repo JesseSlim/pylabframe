@@ -1,9 +1,9 @@
 import numpy as np
 from enum import Enum
 
-from pylabframe.hardware import device, visadevice
-from pylabframe.hardware.device import str_conv, SettingEnum, intbool_conv
-from pylabframe.hardware.visadevice import visa_property, visa_command
+from pylabframe.hw import device, visadevice
+from pylabframe.hw.device import str_conv, SettingEnum, intbool_conv
+from pylabframe.hw.visadevice import visa_property, visa_command
 import pylabframe.data
 
 

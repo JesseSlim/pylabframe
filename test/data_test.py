@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 
 import pylabframe as lab
 import pylabframe.data
-from pylabframe.hardware.drivers import tekvisa
+from pylabframe.hw.drivers import tekvisa
 from pylabframe.data import fitters
 
 test = lab.data.NumericalData(
