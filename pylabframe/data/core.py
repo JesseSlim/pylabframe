@@ -168,7 +168,7 @@ class NumericalData:
             raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{item}' and neither does the underlying data_array")
 
     @classmethod
-    def stack(cls, data_objs, axis=-1, new_axis=None, new_axis_name=None, retain_individual_metadata=False,
+    def stack(cls, data_objs, new_axis=None, new_axis_name=None, axis=-1, retain_individual_metadata=False,
               convert_ax_to_numpy=True):
         """
         Combine data objects into a single object of higher dimensionality
@@ -315,7 +315,7 @@ class NumericalData:
         if y_label is not None:
             plot_axis.set_ylabel(y_label)
 
-    def plot_2d(self, plot_axis, x_label=None, y_label=None, z_label=None, auto_label=True, apply_data_func=lambda x: x,
+    def plot_2d(self, plot_axis=None, x_label=None, y_label=None, z_label=None, auto_label=True, apply_data_func=lambda x: x,
                 x_scaling=1., x_offset=0., y_scaling=1., y_offset=0., z_scaling=1., z_offset=0.,
                 add_colorbar=True, cax=None, fix_mesh=True, rasterized=True, cbar_kw={},
                 **kw):
@@ -353,36 +353,67 @@ class NumericalData:
 
     # fitting functions
     # =================
-    def fit(self, fit_func_def: "FitterDefinition", p0=None, **kw):
-        # if issubclass(fit_func_def, fitters.FitterDefinition):
-        fit_func = fit_func_def.func
+    def fit(self, fit_def: "FitterDefinition", p0=None, data_transform_func=lambda x: x, **kw):
+        # if issubclass(fit_def, fitters.FitterDefinition):
+        fit_func = fit_def.fit_func
         if p0 is None:
-            p0 = fit_func_def.guess_func(self)
+            guessed_params = fit_def.guess_func(self)
+            p0 = [guessed_params[pn] for pn in fit_def.param_names]
 
-        popt, pcov, infodict, mesg, ier = scipy.optimize.curve_fit(fit_func, self.x_axis, self.data_array, p0=p0, full_output=True, **kw)
+        popt, pcov, infodict, mesg, ier = scipy.optimize.curve_fit(
+            lambda *args, **kw: data_transform_func(fit_func(*args, **kw)),
+            self.x_axis, data_transform_func(self.data_array), p0=p0, full_output=True, **kw
+        )
 
-        popt_dict = dict(zip(fit_func_def.param_names, popt))
-        return FitResult(popt_dict, pcov, fit_func, infodict)
+        popt_dict = dict(zip(fit_def.param_names, popt))
+        fit_x_range = (self.x_axis.min(), self.x_axis.max())
+        return FitResult(popt_dict, pcov, fit_def, infodict, fit_x_range)
+
+    def guess_fit(self, fit_def: "FitterDefinition"):
+        guessed_params = fit_def.guess_func(self)
+        p0 = [guessed_params[pn] for pn in fit_def.param_names]
+
+        popt_dict = dict(zip(fit_def.param_names, p0))
+        fit_x_range = (self.x_axis.min(), self.x_axis.max())
+        return FitResult(popt_dict, None, fit_def, None, fit_x_range, guess=True)
+
 
 
 # fitting infrastructure
 # ======================
 
-
 class FitResult:
-    def __init__(self, popt, pcov, fit_def, infodict):
-        self.popt = popt
+    def __init__(self, popt_dict, pcov, fit_def, infodict, fit_x_range=None, guess=False):
+        self.popt_dict = popt_dict
         self.pcov = pcov
-        self.fit_def = fit_def
+        self.fit_def: FitterDefinition = fit_def
         self.infodict = infodict
+        self.fit_x_range = fit_x_range
+        self.guess = guess
+
+    def plot(self, x_start=None, x_stop=None, x_num=1001, x=None, plot_axis=None, **plot_kw):
+        if x is None:
+            if x_start is None:
+                x_start = self.fit_x_range[0]
+            if x_stop is None:
+                x_stop = self.fit_x_range[1]
+            x = np.linspace(x_start, x_stop, num=x_num)
+        y = self.fit_def.fit_func(x, **self.popt_dict)
+        fit_data = NumericalData(y, x)
+
+        plot_kw.setdefault('marker', None)
+        return fit_data.plot(plot_axis=plot_axis, **plot_kw)
+
+    def __repr__(self):
+        return f"FitResult({self.popt_dict}, <pcov>, {self.fit_def.__name__}, ..., guess={self.guess})"
 
 
 class FitterDefinition:
     param_names = None
 
     @classmethod
-    def func(cls):
-        raise None
+    def fit_func(cls, x):
+        return None
 
     @classmethod
     def guess_func(cls, data: NumericalData):

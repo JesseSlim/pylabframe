@@ -1,1 +1,1 @@
-from .core import NumericalData
+from .core import NumericalData, FitterDefinition, FitResult

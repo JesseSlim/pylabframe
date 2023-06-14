@@ -4,13 +4,13 @@ from .core import NumericalData, FitterDefinition, FitResult
 
 
 
-def fit_def(func, guess_func=None, param_names=None):
+def fit_def(fit_func, guess_func=None, param_names=None):
     if guess_func is None:
         guess_func = classmethod(guess_func)
     class CustomFitter(FitterDefinition):
         param_names = param_names
 
-        func = func
+        fit_func = fit_func
         guess_func = guess_func
 
 
@@ -137,12 +137,16 @@ class PeakedFunction(FitterDefinition):
         return dict(**func_params, center=x0, offset=offset)
 
     @staticmethod
-    def single_peak_func(*args, **kwargs):
+    def single_peak_func(x, *args, **kwargs):
         raise NotImplementedError("Peak function not defined")
 
     @staticmethod
     def peak_guess_to_func_params(*args, **kwargs):
         raise NotImplementedError("Peak function not defined")
+
+    @classmethod
+    def fit_func(cls, x, *args, **kwargs):
+        return cls.single_peak_func(x, *args, **kwargs)
 
 
 class Lorentzian(PeakedFunction):
