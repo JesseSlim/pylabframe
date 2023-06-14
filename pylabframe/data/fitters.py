@@ -1,26 +1,7 @@
 import numpy as np
 import scipy
-from .core import NumericalData
+from .core import NumericalData, FitterDefinition, FitResult
 
-
-class FitResult:
-    def __init__(self, popt, pcov, fit_def, infodict):
-        self.popt = popt
-        self.pcov = pcov
-        self.fit_def = fit_def
-        self.infodict = infodict
-
-
-class FitterDefinition:
-    param_names = None
-
-    @classmethod
-    def func(cls):
-        raise None
-
-    @classmethod
-    def guess_func(cls, data: NumericalData):
-        return None
 
 
 def fit_def(func, guess_func=None, param_names=None):

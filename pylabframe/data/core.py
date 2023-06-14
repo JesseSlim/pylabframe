@@ -4,7 +4,6 @@ import copy
 from enum import Enum
 
 from .. import util
-from . import fitters
 
 class NumericalData:
     """
@@ -71,6 +70,13 @@ class NumericalData:
 
             return sub_data
 
+    class ValueLocator:
+        def __init__(self, parent):
+            self.parent: "NumericalData" = parent
+
+        def __getitem__(self, item):
+            return item
+
     def __init__(self, data_array=None, x_axis=None, y_axis=None, z_axis=None, axes=None, axes_names=None,
                  reduced_axes=None, metadata=None, convert_to_numpy=True, transpose=False
                  ):
@@ -92,6 +98,7 @@ class NumericalData:
         self.axes_names = axes_names if axes_names is not None else []
 
         self.iloc = self.IndexLocator(self)
+        self.vloc = self.ValueLocator(self)
 
     def set_axis(self, ax_index, ax_values, convert_to_numpy=True):
         if len(self.axes) < ax_index + 1:
@@ -308,7 +315,7 @@ class NumericalData:
 
     # fitting functions
     # =================
-    def fit(self, fit_func_def: fitters.FitterDefinition, p0=None, **kw):
+    def fit(self, fit_func_def: "FitterDefinition", p0=None, **kw):
         # if issubclass(fit_func_def, fitters.FitterDefinition):
         fit_func = fit_func_def.func
         if p0 is None:
@@ -317,7 +324,31 @@ class NumericalData:
         popt, pcov, infodict, mesg, ier = scipy.optimize.curve_fit(fit_func, self.x_axis, self.data_array, p0=p0, full_output=True, **kw)
 
         popt_dict = dict(zip(fit_func_def.param_names, popt))
-        return fitters.FitResult(popt_dict, pcov, fit_func, infodict)
+        return FitResult(popt_dict, pcov, fit_func, infodict)
+
+
+# fitting infrastructure
+# ======================
+
+
+class FitResult:
+    def __init__(self, popt, pcov, fit_def, infodict):
+        self.popt = popt
+        self.pcov = pcov
+        self.fit_def = fit_def
+        self.infodict = infodict
+
+
+class FitterDefinition:
+    param_names = None
+
+    @classmethod
+    def func(cls):
+        raise None
+
+    @classmethod
+    def guess_func(cls, data: NumericalData):
+        return None
 
 
 # plotting utility functions
