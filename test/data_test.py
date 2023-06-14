@@ -6,13 +6,11 @@ import matplotlib.pyplot as plt
 
 import pylabframe as lab
 import pylabframe.data
-from pylabframe.hw.drivers import tekvisa
-from pylabframe.data import fitters
 
 test = lab.data.NumericalData(
-    [np.sin(np.linspace(0,20)),np.sin(np.linspace(0,20))*1.5, np.sin(np.linspace(0,20))*2.],
+    [np.sin(np.linspace(0,20,51)),np.sin(np.linspace(0,20,51))*1.5, np.sin(np.linspace(0,20,51))*2.],
     transpose=True,
-    x_axis=np.linspace(0,20), y_axis=[20.0,30.0,40.0],
+    x_axis=np.linspace(0,20,51), y_axis=[20.0,30.0,40.0],
     axes_names=["time", "wavelength"]
 )
 
@@ -21,6 +19,9 @@ t3 = test.iloc[2]
 tt1 = test.iloc[:,0]
 tt2 = test.iloc[:,1]
 tt3 = test.iloc[:,2]
+
+tb1 = tt1.vloc[5.:6.]
+tb2 = tt1.vloc[5.:]
 
 tt1.plot()
 tt2.plot()

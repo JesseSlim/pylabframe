@@ -75,7 +75,39 @@ class NumericalData:
             self.parent: "NumericalData" = parent
 
         def __getitem__(self, item):
-            return item
+            if not isinstance(item, tuple):
+                item = (item,)
+
+            idx_slices = tuple()
+
+            for i, vals in enumerate(item):
+                cur_ax = self.parent.axes[i]
+                ax_ordered = np.all(cur_ax[:-1] <= cur_ax[1:])
+                if not ax_ordered:
+                    raise NotImplementedError("Value slicing on unordered or reverse-ordered axes is not yet supported")
+
+                if isinstance(vals, slice):
+                    start_idx = None
+                    stop_idx = None
+                    if vals.step is not None:
+                        raise NotImplementedError("Value slicing with custom step size is not yet supported")
+                    if vals.start is not None:
+                        # find first index along axis >= the start value
+                        start_idx = np.argmax(cur_ax >= vals.start)
+                    if vals.stop is not None:
+                        # find last index along axis <= the stop value
+                        # we do include that last value in the slice, contrary to index slicing
+                        stop_idx = len(cur_ax) - np.argmax(cur_ax[::-1] <= vals.stop)
+
+                    idx_slices += (slice(start_idx, stop_idx),)
+                else:
+                    close_vals = np.isclose(cur_ax, vals)
+                    close_idx = np.argmax(close_vals)
+                    if close_vals[close_idx] == False:
+                        raise ValueError(f"Value {vals} could not be found in axis {i}")
+                    idx_slices += (close_idx,)
+
+            return self.parent.iloc[idx_slices]
 
     def __init__(self, data_array=None, x_axis=None, y_axis=None, z_axis=None, axes=None, axes_names=None,
                  reduced_axes=None, metadata=None, convert_to_numpy=True, transpose=False
@@ -197,6 +229,12 @@ class NumericalData:
 
         stacked_obj = cls(new_data_array, axes=new_axes, axes_names=new_axnames, metadata=new_metadata)
         return stacked_obj
+
+    # manipulation functions
+    # ======================
+    def reverse_axis(self, ax_idx):
+        self.axes[ax_idx] = self.axes[ax_idx][::-1]
+        self.data_array = np.flip(self.data_array, axis=ax_idx)
 
     # saving functions
     # ================
