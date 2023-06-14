@@ -122,9 +122,10 @@ class KeysightESA(visadevice.VisaDevice):
         self.run_mode = self.RunModes.SINGLE
         self.start_trace()
 
-    def acquire_trace(self, trace_num=1, collect_metadata=True, psd=False):
+    def acquire_trace(self, trace_num=1, collect_metadata=True, psd=False, restart=True):
         self.initialize_trace_transfer()
-        self.start_single_trace()
+        if restart:
+            self.start_single_trace()
         self.wait_until_done()
         raw_data = self.instr.query_binary_values(f"trace:data? trace{trace_num}", datatype="d", is_big_endian=True, container=np.array)
 
