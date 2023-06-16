@@ -232,9 +232,18 @@ class NumericalData:
 
     # manipulation functions
     # ======================
-    def reverse_axis(self, ax_idx):
+    def reverse_axis(self, ax_idx=0):
         self.axes[ax_idx] = self.axes[ax_idx][::-1]
         self.data_array = np.flip(self.data_array, axis=ax_idx)
+
+    def copy(self):
+        return type(self)(
+            data_array=self.data_array.copy(),
+            axes=[a.copy() for a in self.axes],
+            axes_names=copy.deepcopy(self.axes_names),
+            reduced_axes=copy.deepcopy(self.reduced_axes),
+            metadata=copy.deepcopy(self.metadata)
+        )
 
     # saving functions
     # ================
@@ -274,9 +283,9 @@ class NumericalData:
     # ==================
     def plot(self, plot_axis=None, x_label=None, y_label=None, auto_label=True, **kw):
         if self.ndim == 1:
-            return self.plot_1d(plot_axis, x_label=None, y_label=None, auto_label=auto_label, **kw)
+            return self.plot_1d(plot_axis, x_label=x_label, y_label=y_label, auto_label=auto_label, **kw)
         elif self.ndim == 2:
-            return self.plot_2d(plot_axis, x_label=None, y_label=None, auto_label=auto_label, **kw)
+            return self.plot_2d(plot_axis, x_label=x_label, y_label=y_label, auto_label=auto_label, **kw)
         else:
             raise NotImplementedError(f"No plotting method available for {self.ndim}-dimensional data")
 
@@ -367,7 +376,7 @@ class NumericalData:
 
         popt_dict = dict(zip(fit_def.param_names, popt))
         fit_x_range = (self.x_axis.min(), self.x_axis.max())
-        return FitResult(popt_dict, pcov, fit_def, infodict, fit_x_range)
+        return FitResult(fit_def, popt_dict, pcov, infodict, fit_x_range)
 
     def guess_fit(self, fit_def: "FitterDefinition"):
         guessed_params = fit_def.guess_func(self)
@@ -375,7 +384,7 @@ class NumericalData:
 
         popt_dict = dict(zip(fit_def.param_names, p0))
         fit_x_range = (self.x_axis.min(), self.x_axis.max())
-        return FitResult(popt_dict, None, fit_def, None, fit_x_range, guess=True)
+        return FitResult(fit_def, popt_dict, None, None, fit_x_range, guess=True)
 
 
 
@@ -383,7 +392,7 @@ class NumericalData:
 # ======================
 
 class FitResult:
-    def __init__(self, popt_dict, pcov, fit_def, infodict, fit_x_range=None, guess=False):
+    def __init__(self, fit_def, popt_dict, pcov, infodict, fit_x_range=None, guess=False):
         self.popt_dict = popt_dict
         self.pcov = pcov
         self.fit_def: FitterDefinition = fit_def
@@ -405,7 +414,10 @@ class FitResult:
         return fit_data.plot(plot_axis=plot_axis, **plot_kw)
 
     def __repr__(self):
-        return f"FitResult({self.popt_dict}, <pcov>, {self.fit_def.__name__}, ..., guess={self.guess})"
+        return f"FitResult({self.fit_def.__name__}, {self.popt_dict}, <pcov>, ..., guess={self.guess})"
+
+    def __getitem__(self, item):
+        return self.popt_dict[item]
 
 
 class FitterDefinition:

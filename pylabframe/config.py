@@ -5,7 +5,13 @@ r"""Current config file format:
 computer_name = "lab-pc-1"
 
 [data]
-root_dir = 'C:\Users\labuser\Data'
+root_dir = 'C:\Users\labuser\Data'  # using single quotes here to interpret as raw string (keep backslashes as-is)
+datestamp_fmt = "%Y-%m-%d"
+datestamp_suffix = " "
+timestamp_fmt = "%H%M%S"
+timestamp_suffix = " "
+day_starts_hour = 4
+require_today_dir = true
 
 [devices]
     [devices.scope1]
@@ -30,7 +36,7 @@ import os
 _config_path = None
 
 
-def use(config_file):
+def use(config_file, run_post_config_hooks=True):
     global _config_path
     if os.path.isfile(config_file):
         _config_path = os.path.abspath(config_file)
@@ -45,6 +51,9 @@ def use(config_file):
             _config_path = user_config_file
         else:
             raise FileNotFoundError(f"Configuration file {config_file} could not be found in either the current directory or in ~/.pylabframe/config")
+    if run_post_config_hooks:
+        _post_config()
+
 
 
 def get_settings(key=None, file=None):
@@ -58,3 +67,9 @@ def get_settings(key=None, file=None):
         settings_dict = settings_dict[key]
 
     return settings_dict
+
+
+def _post_config():
+    settings = get_settings()
+    import data.path
+    data.path._post_config(settings)
