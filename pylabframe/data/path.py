@@ -25,7 +25,7 @@ def today_dir(*args):
     matches = glob.glob(search_glob)
 
     if len(matches) == 0:
-        raise FileNotFoundError(f"No data directory find for date {cur_ds} in {root_dir()}")
+        raise FileNotFoundError(f"No data directory found for date {cur_ds} in {root_dir()}")
     elif len(matches) > 1:
         raise Warning(f"Multiple data directories found for date {cur_ds} in {root_dir()}")
 
@@ -33,7 +33,7 @@ def today_dir(*args):
 
 
 class TimestampedDir:
-    def __int__(self, name, timestamp: datetime.time=None, parent_dir=None, create_dirs=True, ts_suffix=None):
+    def __init__(self, name, timestamp: datetime.time=None, parent_dir=None, create_dirs=True, ts_suffix=None, verbose=True):
         settings = config.get_settings('data')
         if parent_dir is None:
             parent_dir = today_dir()
@@ -48,10 +48,18 @@ class TimestampedDir:
         self.name = name
         self.dir_name = timestamp + ts_suffix + name
 
-        if create_dirs:
-            os.makedirs(os.path.join(self.parent_dir, self.dir_name), exist_ok=True)
+        if verbose:
+            print(f"Saving data in directory: {self.dir_name}")
 
-    def file(self, *args):
+        if create_dirs:
+            dir_path = os.path.join(self.parent_dir, self.dir_name)
+            if verbose:
+                print(f" > creating directory: {dir_path}")
+            os.makedirs(dir_path, exist_ok=True)
+
+    def file(self, *args, verbose=True):
+        if verbose:
+            print(f"Saving current measurement as: {os.path.join(self.dir_name, *args)}")
         return os.path.join(self.parent_dir, self.dir_name, *args)
 
 
@@ -94,6 +102,7 @@ def require_today_dir():
         os.mkdir(td)
 
 
+@config.register_post_config_hook
 def _post_config(settings):
-    if settings['data']['require_today_directory']:
+    if settings['data']['require_today_dir']:
         require_today_dir()
