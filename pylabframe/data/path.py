@@ -16,7 +16,7 @@ def current_datestamp():
     return cur_date.strftime(settings['datestamp_fmt'])
 
 
-def today_dir(*args):
+def today_dir():
     if not os.path.isdir(root_dir()):
         raise FileNotFoundError(f"Root data directory {root_dir()} not found")
 
@@ -29,7 +29,40 @@ def today_dir(*args):
     elif len(matches) > 1:
         raise Warning(f"Multiple data directories found for date {cur_ds} in {root_dir()}")
 
-    return os.path.join(matches[0], *args)
+    return matches[0]
+
+
+def save_path(*args, add_timestamp=True, timestamp=None, ts_suffix=None, parent_dir=None, create_dirs=True, verbose=True, exist_ok=False):
+    if len(args) == 0:
+        raise ValueError('No filename specified')
+    if parent_dir is None:
+        parent_dir = today_dir()
+    settings = config.get_settings('data')
+    if timestamp is None:
+        timestamp = datetime.datetime.now()
+    if not isinstance(timestamp, str):
+        timestamp = timestamp.strftime(settings['timestamp_fmt'])
+    if ts_suffix is None:
+        ts_suffix = settings['timestamp_suffix']
+
+    if add_timestamp:
+        args = list(args)
+        args[-1] = timestamp + ts_suffix + args[-1]
+
+    if verbose:
+        print(f"Saving data in file: {os.path.join(*args)}")
+
+    if len(args) > 1 and create_dirs:
+        dir_path = os.path.join(parent_dir, args[:-1])
+        if verbose:
+            print(f" > creating directory: {dir_path}")
+        os.makedirs(dir_path, exist_ok=True)
+
+    cur_path = os.path.join(parent_dir, *args)
+    if not exist_ok and os.path.exists(cur_path):
+        raise FileExistsError(cur_path)
+
+    return cur_path
 
 
 class TimestampedDir:
@@ -57,10 +90,14 @@ class TimestampedDir:
                 print(f" > creating directory: {dir_path}")
             os.makedirs(dir_path, exist_ok=True)
 
-    def file(self, *args, verbose=True):
+    def file(self, *args, verbose=True, exists_ok=False):
         if verbose:
             print(f"Saving current measurement as: {os.path.join(self.dir_name, *args)}")
-        return os.path.join(self.parent_dir, self.dir_name, *args)
+        cur_path = os.path.join(self.parent_dir, self.dir_name, *args)
+        if not exists_ok and os.path.exists(cur_path):
+            raise FileExistsError(cur_path)
+
+        return cur_path
 
 
 def find_path(*args, parent_dir=None, in_today=False, return_multiple=False):
