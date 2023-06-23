@@ -31,11 +31,13 @@ def today_dir():
     return matches[0]
 
 
-def save_path(*args, add_timestamp=True, timestamp=None, ts_suffix=None, parent_dir=None, create_dirs=True, verbose=True, exist_ok=False):
+def save_path(*args, add_timestamp=None, timestamp=None, ts_suffix=None, parent_dir=None, create_dirs=True, verbose=True, exist_ok=False):
     if len(args) == 0:
         raise ValueError('No filename specified')
     if parent_dir is None:
         parent_dir = today_dir()
+    if add_timestamp is None:
+        add_timestamp = config.get('data.default_add_timestamp')
     if timestamp is None:
         timestamp = datetime.datetime.now()
     if not isinstance(timestamp, str):
@@ -43,20 +45,27 @@ def save_path(*args, add_timestamp=True, timestamp=None, ts_suffix=None, parent_
     if ts_suffix is None:
         ts_suffix = config.get('data.timestamp_suffix')
 
+    args = list(args)
+
     if add_timestamp:
-        args = list(args)
         args[-1] = timestamp + ts_suffix + args[-1]
 
     if verbose:
         print(f"Saving data in file: {os.path.join(*args)}")
 
     if len(args) > 1 and create_dirs:
-        dir_path = os.path.join(parent_dir, args[:-1])
+        if parent_dir:
+            dir_path = os.path.join(parent_dir, args[:-1])
+        else:
+            dir_path = os.path.join(args[:-1])
         if verbose:
             print(f" > creating directory: {dir_path}")
         os.makedirs(dir_path, exist_ok=True)
 
-    cur_path = os.path.join(parent_dir, *args)
+    if parent_dir:
+        args = [parent_dir] + args
+
+    cur_path = os.path.join(*args)
     if not exist_ok and os.path.exists(cur_path):
         raise FileExistsError(cur_path)
 
@@ -82,7 +91,11 @@ class TimestampedDir:
             print(f"Saving data in directory: {self.dir_name}")
 
         if create_dirs:
-            dir_path = os.path.join(self.parent_dir, self.dir_name)
+            if self.parent_dir:
+                dir_path = os.path.join(self.parent_dir, self.dir_name)
+            else:
+                dir_path = self.dir_name
+
             if verbose:
                 print(f" > creating directory: {dir_path}")
             os.makedirs(dir_path, exist_ok=True)
@@ -90,7 +103,10 @@ class TimestampedDir:
     def file(self, *args, verbose=True, exists_ok=False):
         if verbose:
             print(f"Saving current measurement as: {os.path.join(self.dir_name, *args)}")
-        cur_path = os.path.join(self.parent_dir, self.dir_name, *args)
+        if self.parent_dir:
+            cur_path = os.path.join(self.parent_dir, self.dir_name, *args)
+        else:
+            cur_path = os.path.join(self.dir_name, *args)
         if not exists_ok and os.path.exists(cur_path):
             raise FileExistsError(cur_path)
 
@@ -106,7 +122,9 @@ def find_path(*args, parent_dir=None, in_today=False, return_multiple=False):
 
     cur_parent = parent_dir
     for i, a in enumerate(args):
-        search_glob = os.path.join(cur_parent, f"{a}*")
+        search_glob = f"{a}*"
+        if cur_parent:
+            search_glob = os.path.join(cur_parent, search_glob)
         matches = glob.glob(search_glob)
         if len(matches) == 0:
             raise FileNotFoundError(f"Can't find '{a}*' in {cur_parent}")
@@ -121,13 +139,20 @@ def find_path(*args, parent_dir=None, in_today=False, return_multiple=False):
     return cur_parent
 
 
-def expand_default_save_location(file, add_timestamp=True, timestamp=None, ts_suffix=None, create_dirs=True, verbose=True, exist_ok=False):
+def expand_default_save_location(file, add_timestamp=None, timestamp=None, ts_suffix=None, create_dirs=True, verbose=True, exist_ok=False):
     if os.path.isabs(file):
+        if not exist_ok and os.path.exists(file):
+            raise FileExistsError(file)
         return file  # don't need to do any expansion
 
     default_save_option = config.get("data.default_save_location")
     if default_save_option == 'cwd':
+        if not exist_ok and os.path.exists(file):
+            raise FileExistsError(file)
         return file
+    elif default_save_option == 'cwd_with_timestamp':
+        return save_path(file, add_timestamp=add_timestamp, timestamp=timestamp, ts_suffix=ts_suffix,
+                         parent_dir=False, create_dirs=create_dirs, verbose=verbose, exist_ok=exist_ok)
     elif default_save_option == 'today_dir':
         return save_path(file, add_timestamp=add_timestamp, timestamp=timestamp, ts_suffix=ts_suffix,
                          parent_dir=today_dir(), create_dirs=create_dirs, verbose=verbose, exist_ok=exist_ok)

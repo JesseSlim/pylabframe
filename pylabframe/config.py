@@ -13,6 +13,7 @@ timestamp_suffix = " "
 day_starts_hour = 4
 require_today_dir = true
 default_save_location = "today_dir"  # options are: today_dir, root_dir, cwd
+default_add_timestamp = true
 
 [devices]
     [devices.scope1]
@@ -51,7 +52,8 @@ timestamp_fmt = "%H%M%S"
 timestamp_suffix = " "
 day_starts_hour = 4
 require_today_dir = true
-default_save_location = "cwd"  # options are: today_dir, root_dir, cwd
+default_save_location = "cwd"  # options are: today_dir, root_dir, cwd, cwd_with_timestamp
+default_add_timestamp = true
 """
 
 _default_settings = tomllib.loads(_default_settings_toml)
@@ -94,8 +96,11 @@ def reload(file=None, run_post_config_hooks=True):
         _post_config()
 
 
-def print():
-    pprint.pprint(_loaded_settings)
+def print(default=False):
+    if not default:
+        pprint.pprint(_loaded_settings)
+    else:
+        pprint.pprint(_default_settings)
 
 
 def get(key=None):
