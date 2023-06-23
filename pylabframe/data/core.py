@@ -434,7 +434,7 @@ class FitResult:
                 x_stop = self.fit_x_range[1]
             x = np.linspace(x_start, x_stop, num=x_num)
         y = self(x)
-        fit_data = NumericalData(y, x)
+        fit_data = NumericalData(x, y)
 
         plot_kw.setdefault('marker', None)
         return fit_data.plot(plot_axis=plot_axis, **plot_kw)
