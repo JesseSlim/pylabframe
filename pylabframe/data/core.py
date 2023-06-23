@@ -110,15 +110,23 @@ class NumericalData:
 
             return self.parent.iloc[idx_slices]
 
-    def __init__(self, data_array=None, x_axis=None, y_axis=None, z_axis=None, axes=None, axes_names=None,
-                 reduced_axes=None, metadata=None, convert_to_numpy=True, transpose=False
+    def __init__(self, *args, data_array=None, x_axis=None, y_axis=None, z_axis=None, axes=None, axes_names=None,
+                 reduced_axes=None, metadata=None, convert_to_numpy=True, transpose=False, check_dimensions=True
                  ):
+        if len(args) > 0:
+            # in this case, take the last positional arg as the data array, and the preceding ones as axes
+            # allows to initialize using the intuitive syntax NumericalData(X, Y), or (X, Y, Z), etc
+            data_array = args[-1]
+            axes = list(args[:-1])
+
         if convert_to_numpy:
             data_array = np.asarray(data_array)
         if transpose:
             data_array = data_array.T
         self.data_array = data_array
         self.axes = axes if axes is not None else []
+        if convert_to_numpy:
+            self.axes = [(np.asarray(a) if a is not None else None) for a in self.axes]
         self.reduced_axes = reduced_axes if reduced_axes is not None else []
         self.metadata = metadata if metadata is not None else {}
         if x_axis is not None:
@@ -132,6 +140,15 @@ class NumericalData:
 
         self.iloc = self.IndexLocator(self)
         self.vloc = self.ValueLocator(self)
+
+        # this only works now if the axes are numpy arrays. could be generalized to list-like axes as well
+        if check_dimensions:
+            for i in range(min(self.data_array.ndim, len(self.axes))):
+                if self.axes[i] is not None:
+                    if self.axes[i].ndim != 1:
+                        raise ValueError(f"Axis {i} is not one-dimensional but {self.axes[i].ndim}-dimensional")
+                    if self.data_array.shape[i] != self.axes[i].shape[0]:
+                        raise ValueError(f"Data length {self.data_array.shape[i]} does not match axis length {self.axes[i].shape[0]} along axis {i}")
 
     def set_axis(self, ax_index, ax_values, convert_to_numpy=True):
         if len(self.axes) < ax_index + 1:
