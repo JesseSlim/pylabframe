@@ -1,3 +1,5 @@
+import copy
+
 import pylabframe
 from enum import Enum
 
@@ -15,8 +17,8 @@ def get_device(id):
 
 def _connect_device(id):
     from . import drivers
-    hw_conf = pylabframe.config.get_settings('devices')
-    device_settings = hw_conf[id]
+    hw_conf = pylabframe.config.get('devices')
+    device_settings = copy.deepcopy(hw_conf[id])
     device_class = device_settings['driver']
 
     # remove driver from the device settings dict -- the remaining parameters are fed to the constructor

@@ -4,6 +4,7 @@ import copy
 from enum import Enum
 
 from .. import util
+from . import path
 
 class NumericalData:
     """
@@ -167,6 +168,13 @@ class NumericalData:
         else:
             raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{item}' and neither does the underlying data_array")
 
+    # item access is patched through to the metadata dict
+    def __getitem__(self, item):
+        return self.metadata[item]
+
+    def __setitem__(self, key, value):
+        self.metadata[key] = value
+
     @classmethod
     def stack(cls, data_objs, new_axis=None, new_axis_name=None, axis=-1, retain_individual_metadata=False,
               convert_ax_to_numpy=True):
@@ -247,7 +255,8 @@ class NumericalData:
 
     # saving functions
     # ================
-    def save_npz(self, file, stringify_enums=True):
+    def save_npz(self, file, stringify_enums=True, **expand_kw):
+        file = path.expand_default_save_location(file, **expand_kw)
         num_axes = len(self.axes) if self.axes is not None else 0
         if num_axes > 0:
             ax_dict = {f"axis_{i}": self.axes[i] for i in range(num_axes)}
@@ -407,11 +416,14 @@ class FitResult:
             if x_stop is None:
                 x_stop = self.fit_x_range[1]
             x = np.linspace(x_start, x_stop, num=x_num)
-        y = self.fit_def.fit_func(x, **self.popt_dict)
+        y = self(x)
         fit_data = NumericalData(y, x)
 
         plot_kw.setdefault('marker', None)
         return fit_data.plot(plot_axis=plot_axis, **plot_kw)
+
+    def __call__(self, x):
+        return self.fit_def.fit_func(x, **self.popt_dict)
 
     def __repr__(self):
         return f"FitResult({self.fit_def.__name__}, {self.popt_dict}, <pcov>, ..., guess={self.guess})"
@@ -461,3 +473,11 @@ def plot_2d_data(x, y, z, ax=None, fix_mesh=True, rasterized=True, **kw):
 
     return im
 
+
+def load(*args, parent_dir=None, in_today=False, return_multiple=False):
+    filenames = path.find_path(*args, parent_dir=parent_dir, in_today=in_today, return_multiple=return_multiple)
+
+    if return_multiple:
+        return [NumericalData.load_npz(f) for f in filenames]
+    else:
+        return NumericalData.load_npz(filenames)

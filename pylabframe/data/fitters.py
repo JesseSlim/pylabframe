@@ -52,7 +52,7 @@ def complex_savgol_filter(x, *args, **kw):
 class PeakedFunction(FitterDefinition):
     @classmethod
     def guess_func(cls, data: NumericalData=None, x=None, y=None, offset=None, smoothing_window=1, smoothing_order=0, closely_spaced=False,
-                  halfmax_thrs=0.5, binned_offset_estimation=False, smooth_postprocess=lambda x: x, take_abs=True,
+                  halfmax_thrs=0.5, binned_offset_estimation=False, smooth_postprocess=lambda x: x, take_abs=False,
                   smooth_preprocess=lambda x: x):
         """Guess parameters for a single peak"""
         if data is not None:
@@ -69,7 +69,7 @@ class PeakedFunction(FitterDefinition):
         else:
             smoothed_data = y
 
-        if take_abs:
+        if take_abs or np.iscomplexobj(smoothed_data):
             smoothed_data_abs = np.abs(smoothed_data)
         else:
             smoothed_data_abs = smoothed_data.copy()

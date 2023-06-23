@@ -6,14 +6,13 @@ from .. import config
 
 
 def root_dir():
-    return config.get_settings('data')['root_dir']
+    return os.path.expanduser(config.get('data.root_dir'))
 
 
 def current_datestamp():
-    settings = config.get_settings('data')
-    cur_date = datetime.datetime.now() - datetime.timedelta(hours=settings['day_starts_hour'])
+    cur_date = datetime.datetime.now() - datetime.timedelta(hours=config.get('data.day_starts_hour'))
 
-    return cur_date.strftime(settings['datestamp_fmt'])
+    return cur_date.strftime(config.get('data.datestamp_fmt'))
 
 
 def today_dir():
@@ -37,13 +36,12 @@ def save_path(*args, add_timestamp=True, timestamp=None, ts_suffix=None, parent_
         raise ValueError('No filename specified')
     if parent_dir is None:
         parent_dir = today_dir()
-    settings = config.get_settings('data')
     if timestamp is None:
         timestamp = datetime.datetime.now()
     if not isinstance(timestamp, str):
-        timestamp = timestamp.strftime(settings['timestamp_fmt'])
+        timestamp = timestamp.strftime(config.get('data.timestamp_fmt'))
     if ts_suffix is None:
-        ts_suffix = settings['timestamp_suffix']
+        ts_suffix = config.get('data.timestamp_suffix')
 
     if add_timestamp:
         args = list(args)
@@ -67,15 +65,14 @@ def save_path(*args, add_timestamp=True, timestamp=None, ts_suffix=None, parent_
 
 class TimestampedDir:
     def __init__(self, name, timestamp: datetime.time=None, parent_dir=None, create_dirs=True, ts_suffix=None, verbose=True):
-        settings = config.get_settings('data')
         if parent_dir is None:
             parent_dir = today_dir()
         if timestamp is None:
             timestamp = datetime.datetime.now()
         if not isinstance(timestamp, str):
-            timestamp = timestamp.strftime(settings['timestamp_fmt'])
+            timestamp = timestamp.strftime(config.get('data.timestamp_fmt'))
         if ts_suffix is None:
-            ts_suffix = settings['timestamp_suffix']
+            ts_suffix = config.get('data.timestamp_suffix')
 
         self.parent_dir = parent_dir
         self.name = name
@@ -124,6 +121,23 @@ def find_path(*args, parent_dir=None, in_today=False, return_multiple=False):
     return cur_parent
 
 
+def expand_default_save_location(file, add_timestamp=True, timestamp=None, ts_suffix=None, create_dirs=True, verbose=True, exist_ok=False):
+    if os.path.isabs(file):
+        return file  # don't need to do any expansion
+
+    default_save_option = config.get("data.default_save_location")
+    if default_save_option == 'cwd':
+        return file
+    elif default_save_option == 'today_dir':
+        return save_path(file, add_timestamp=add_timestamp, timestamp=timestamp, ts_suffix=ts_suffix,
+                         parent_dir=today_dir(), create_dirs=create_dirs, verbose=verbose, exist_ok=exist_ok)
+    elif default_save_option == 'root_dir':
+        return save_path(file, add_timestamp=add_timestamp, timestamp=timestamp, ts_suffix=ts_suffix,
+                         parent_dir=root_dir(), create_dirs=create_dirs, verbose=verbose, exist_ok=exist_ok)
+    else:
+        raise ValueError(f"Invalid option for default save location: {default_save_option}")
+
+
 def require_today_dir():
     if not os.path.isdir(root_dir()):
         raise FileNotFoundError(f"Root data directory {root_dir()} not found")
@@ -131,15 +145,14 @@ def require_today_dir():
     try:
         today_dir()
     except FileNotFoundError:
-        settings = config.get_settings('data')
         new_dir = input("Please enter a new for today's data directory: ")
-        new_dir = current_datestamp() + settings['datestamp_suffix'] + new_dir
+        new_dir = current_datestamp() + config.get('data.datestamp_suffix') + new_dir
 
         td = os.path.join(root_dir(), new_dir)
         os.mkdir(td)
 
 
 @config.register_post_config_hook
-def _post_config(settings):
-    if settings['data']['require_today_dir']:
+def _post_config():
+    if config.get('data.require_today_dir'):
         require_today_dir()
