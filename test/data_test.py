@@ -8,9 +8,9 @@ import pylabframe as lab
 import pylabframe.data
 
 test = lab.data.NumericalData(
+    np.linspace(0,20,51), [20.0,30.0,40.0],
     [np.sin(np.linspace(0,20,51)),np.sin(np.linspace(0,20,51))*1.5, np.sin(np.linspace(0,20,51))*2.],
     transpose=True,
-    x_axis=np.linspace(0,20,51), y_axis=[20.0,30.0,40.0],
     axes_names=["time", "wavelength"]
 )
 

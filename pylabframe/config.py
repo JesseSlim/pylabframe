@@ -12,7 +12,7 @@ timestamp_fmt = "%H%M%S"
 timestamp_suffix = " "
 day_starts_hour = 4
 require_today_dir = true
-default_save_location = "today_dir"  # options are: today_dir, root_dir, cwd
+default_save_location = "today_dir"  # options are: today_dir, root_dir, cwd, cwd_with_timestamp
 default_add_timestamp = true
 
 [devices]

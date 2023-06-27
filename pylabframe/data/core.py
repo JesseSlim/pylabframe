@@ -117,7 +117,10 @@ class NumericalData:
             # in this case, take the last positional arg as the data array, and the preceding ones as axes
             # allows to initialize using the intuitive syntax NumericalData(X, Y), or (X, Y, Z), etc
             data_array = args[-1]
-            axes = list(args[:-1])
+            if axes is None:
+                axes = list(args[:-1])
+            elif len(args) > 1:
+                raise ValueError("Axes defined both as positional and keyword arguments.")
 
         if convert_to_numpy:
             data_array = np.asarray(data_array)
