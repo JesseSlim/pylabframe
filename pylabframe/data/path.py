@@ -9,10 +9,22 @@ def root_dir():
     return os.path.expanduser(config.get('data.root_dir'))
 
 
-def current_datestamp():
+def current_datestamp(as_string=True):
     cur_date = datetime.datetime.now() - datetime.timedelta(hours=config.get('data.day_starts_hour'))
 
-    return cur_date.strftime(config.get('data.datestamp_fmt'))
+    if not as_string:
+        return cur_date.date()
+    else:
+        return cur_date.strftime(config.get('data.datestamp_fmt'))
+
+
+def current_timestamp(as_string=True):
+    cur_time = datetime.datetime.now()
+
+    if not as_string:
+        return cur_time.time()
+    else:
+        return cur_time.strftime(config.get('data.timestamp_fmt'))
 
 
 def today_dir():

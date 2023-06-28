@@ -197,6 +197,7 @@ class NumericalData:
 
     @classmethod
     def stack(cls, data_objs, new_axis=None, new_axis_name=None, axis=-1, retain_individual_metadata=False,
+              new_axis_metadata_key=None,
               convert_ax_to_numpy=True):
         """
         Combine data objects into a single object of higher dimensionality
@@ -211,6 +212,11 @@ class NumericalData:
         data_arrays = []
         individual_metadata = {}
         new_metadata = None
+        if new_axis is not None and new_axis_metadata_key is not None:
+            raise ValueError("new_axis and new_axis_metadata_key can not be set at the same time")
+
+        if new_axis_metadata_key is not None:
+            new_axis = []
 
         for o in data_objs:
             if isinstance(o, NumericalData):
@@ -219,6 +225,8 @@ class NumericalData:
                     new_metadata = o.metadata.copy()
                 if retain_individual_metadata:
                     individual_metadata[len(data_arrays) - 1] = o.metadata
+                if new_axis_metadata_key is not None:
+                    new_axis.append(o.metadata[new_axis_metadata_key])
             else:
                 data_arrays.append(o)
 
@@ -260,9 +268,19 @@ class NumericalData:
 
     # manipulation functions
     # ======================
-    def reverse_axis(self, ax_idx=0):
-        self.axes[ax_idx] = self.axes[ax_idx][::-1]
-        self.data_array = np.flip(self.data_array, axis=ax_idx)
+    def reverse_axis(self, axis=0):
+        self.axes[axis] = self.axes[axis][::-1]
+        self.data_array = np.flip(self.data_array, axis=axis)
+
+    def sort_axis(self, axis=0, **sort_kw):
+        if axis == 'all':
+            for i in range(self.data_array.ndim):
+                self.sort_axis(axis=i, **sort_kw)
+        else:
+            sort_idx = np.argsort(self.axes[axis], **sort_kw)
+
+            self.axes[axis] = np.take(self.axes[axis], sort_idx, axis=0)
+            self.data_array = np.take(self.data_array, sort_idx, axis=axis)
 
     def copy(self):
         return type(self)(
@@ -275,13 +293,17 @@ class NumericalData:
 
     # saving functions
     # ================
-    def save_npz(self, file, stringify_enums=True, **expand_kw):
+    def save_npz(self, file, stringify_enums=True, save_timestamp=True, **expand_kw):
         file = path.expand_default_save_location(file, **expand_kw)
         num_axes = len(self.axes) if self.axes is not None else 0
         if num_axes > 0:
             ax_dict = {f"axis_{i}": self.axes[i] for i in range(num_axes)}
         else:
             ax_dict = {}
+
+        if save_timestamp:
+            metadata["save_date"] = path.current_datestamp()
+            metadata["save_time"] = path.current_timestamp()
 
         metadata = copy.deepcopy(self.metadata)
         if stringify_enums:
