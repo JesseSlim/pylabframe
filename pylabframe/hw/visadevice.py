@@ -117,14 +117,15 @@ def visa_command(visa_cmd, wait_until_done=False):
 
 
 class VisaDevice(device.Device):
-    def __init__(self, id, address, **kw):
-        super().__init__(id, **kw)
+    def __init__(self, id, address, error_on_double_connect=True, **kw):
+        super().__init__(id, error_on_double_connect=error_on_double_connect)
         self.address = address
-        self.instr: pyvisa.resources.messagebased.MessageBasedResource = _visa_rm.open_resource(address)
+        self.instr: pyvisa.resources.messagebased.MessageBasedResource = _visa_rm.open_resource(address, **kw)
 
     def __del__(self):
-        self.instr.close()
-        del self.instr
+        if self.instr:
+            self.instr.close()
+            del self.instr
 
     @classmethod
     def list_available(cls):

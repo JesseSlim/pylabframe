@@ -39,7 +39,7 @@ def _connect_device(id):
 
 
 class Device:
-    def __init__(self, id, error_on_double_connect=True, **kw):
+    def __init__(self, id, error_on_double_connect=True):
         if id in _connected_devices and error_on_double_connect:
             raise RuntimeError(f"Device {id} already connected")
 

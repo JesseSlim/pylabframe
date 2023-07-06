@@ -37,3 +37,7 @@ class TSL(visadevice.VisaDevice):
     wavelength_display_unit = visa_property(":wavelength:unit", dtype=WavelengthUnit)
     wavelength = visa_property(":wavelength", dtype=float)
     frequency = visa_property(":wavelength:frequency", dtype=float)
+
+    sweep_wavelength_start = visa_property(":wavelength:sweep:start", dtype=float)
+    sweep_wavelength_stop = visa_property(":wavelength:sweep:stop", dtype=float)
+    sweep_wavelength_speed = visa_property(":wavelength:sweep:speed", dtype=float)

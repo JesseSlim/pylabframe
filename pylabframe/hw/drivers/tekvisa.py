@@ -17,6 +17,9 @@ class TektronixScope(visadevice.VisaDevice):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
+        # set up data transferring already
+        self.initialize_waveform_transfer(1)
+
         # initialize channels
         self.channels: list[TektronixScope.Channel] = [self.Channel(i+1, self) for i in range(self.NUM_CHANNELS)]
 
@@ -26,10 +29,13 @@ class TektronixScope(visadevice.VisaDevice):
     running = visa_property("acquire:state", read_conv=intbool_conv, write_conv=int)
     x_scale = visa_property("horizontal:scale", rw_conv=float)
 
+    # (I think there are better/more specific commands to do this, but it works)
+    initiate_single_acquisition = visa_command("fpanel:press single")
+    force_trigger = visa_command("fpanel:press forcetrig")
+
     def trigger_single_acquisition(self):
-        # (I think there are better/more specific commands to do this, but it works)
-        self.instr.write("fpanel:press single")
-        self.instr.write("fpanel:press forcetrig")
+        self.initiate_single_acquisition()
+        self.force_trigger()
 
     # waveform transfer properties
     waveform_points = visa_property("wfmoutpre:nr_pt", read_only=True, read_conv=int)

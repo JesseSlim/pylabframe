@@ -302,8 +302,8 @@ class NumericalData:
             ax_dict = {}
 
         if save_timestamp:
-            metadata["save_date"] = path.current_datestamp()
-            metadata["save_time"] = path.current_timestamp()
+            self.metadata["save_date"] = path.current_datestamp()
+            self.metadata["save_time"] = path.current_timestamp()
 
         metadata = copy.deepcopy(self.metadata)
         if stringify_enums:
