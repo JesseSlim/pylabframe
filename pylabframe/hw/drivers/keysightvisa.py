@@ -167,11 +167,16 @@ class KeysightESA(visadevice.VisaDevice):
         self.instrument_mode = self.InstrumentModes.IQ_ANALYZER
         self.configure_iq_waveform()
 
-    def acquire_iq_waveform(self, return_complex=True):
+    def acquire_iq_waveform(self, return_complex=True, restart=True):
         self.initialize_trace_transfer()
-        self.start_single_trace()
-        self.wait_until_done()
+        if restart:
+            self.start_single_trace()
+            self.wait_until_done()
         raw_data = self.instr.query_binary_values(f"fetch:waveform0?", datatype="d", is_big_endian=True,
+                                                  container=np.array)
+        envelope_data = self.instr.query_binary_values(f"fetch:waveform2?", datatype="d", is_big_endian=True,
+                                                  container=np.array)
+        statistics_data = self.instr.query_binary_values(f"fetch:waveform1?", datatype="d", is_big_endian=True,
                                                   container=np.array)
         i_data = raw_data[::2]
         q_data = raw_data[1::2]
@@ -180,7 +185,9 @@ class KeysightESA(visadevice.VisaDevice):
 
         metadata = {
             "center_frequency": self.center_frequency,
-            "iq_bw": self.iq_bw
+            "iq_bw": self.iq_bw,
+            "envelope_data": envelope_data,
+            "statistics_data": statistics_data
         }
 
         if return_complex:
