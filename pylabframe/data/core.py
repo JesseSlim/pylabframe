@@ -197,7 +197,7 @@ class NumericalData:
 
     @classmethod
     def stack(cls, data_objs, new_axis=None, new_axis_name=None, axis=-1, retain_individual_metadata=False,
-              new_axis_metadata_key=None,
+              new_axis_metadata_key=None, sort_by_metadata_key=True,
               convert_ax_to_numpy=True):
         """
         Combine data objects into a single object of higher dimensionality
@@ -217,6 +217,11 @@ class NumericalData:
 
         if new_axis_metadata_key is not None:
             new_axis = []
+
+        if sort_by_metadata_key and new_axis_metadata_key is not None:
+            if sort_by_metadata_key is True:
+                sort_by_metadata_key = new_axis_metadata_key
+            data_objs = sorted(data_objs, key=lambda o: o.metadata[sort_by_metadata_key])
 
         for o in data_objs:
             if isinstance(o, NumericalData):

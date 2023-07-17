@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "pylabframe"
-version = "0.0.1"
+version = "0.0.2"
 authors = [
   { name="Jesse Slim", email="jesse.j.slim@gmail.com" },
 ]
@@ -18,7 +18,8 @@ classifiers = [
 ]
 dependencies = [
     "numpy",
-    "tomli; python_version < '3.11'"
+    "tomli; python_version < '3.11'",
+    "matplotlib",
 ]
 
 [project.urls]

@@ -7,11 +7,19 @@ from .core import NumericalData, FitterDefinition, FitResult
 def fit_def(fit_func, guess_func=None, param_names=None):
     if guess_func is None:
         guess_func = classmethod(guess_func)
-    class CustomFitter(FitterDefinition):
-        param_names = param_names
 
-        fit_func = fit_func
-        guess_func = guess_func
+    # this stuff is necessary
+    # see https://stackoverflow.com/a/4296729
+    def_fit_func = fit_func
+    def_guess_func = guess_func
+    def_param_names = param_names
+    class CustomFitter(FitterDefinition):
+        param_names = def_param_names
+
+        fit_func = def_fit_func
+        guess_func = def_guess_func
+
+    return CustomFitter
 
 
 # ================
