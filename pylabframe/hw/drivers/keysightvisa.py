@@ -122,11 +122,12 @@ class KeysightESA(visadevice.VisaDevice):
         self.run_mode = self.RunModes.SINGLE
         self.start_trace()
 
-    def acquire_trace(self, trace_num=1, collect_metadata=True, psd=False, restart=True):
+    def acquire_trace(self, trace_num=1, collect_metadata=True, psd=False, restart=True, wait_until_done=True):
         self.initialize_trace_transfer()
         if restart:
             self.start_single_trace()
-        self.wait_until_done()
+        if wait_until_done:
+            self.wait_until_done()
         raw_data = self.instr.query_binary_values(f"trace:data? trace{trace_num}", datatype="d", is_big_endian=True, container=np.array)
 
         if collect_metadata:
@@ -167,10 +168,11 @@ class KeysightESA(visadevice.VisaDevice):
         self.instrument_mode = self.InstrumentModes.IQ_ANALYZER
         self.configure_iq_waveform()
 
-    def acquire_iq_waveform(self, return_complex=True, restart=True):
+    def acquire_iq_waveform(self, return_complex=False, restart=True, wait_until_done=True):
         self.initialize_trace_transfer()
         if restart:
             self.start_single_trace()
+        if wait_until_done:
             self.wait_until_done()
         raw_data = self.instr.query_binary_values(f"fetch:waveform0?", datatype="d", is_big_endian=True,
                                                   container=np.array)
@@ -187,14 +189,15 @@ class KeysightESA(visadevice.VisaDevice):
             "center_frequency": self.center_frequency,
             "iq_bw": self.iq_bw,
             "envelope_data": envelope_data,
-            "statistics_data": statistics_data
+            "statistics_data": statistics_data,
+            "raw_data": raw_data
         }
 
         if return_complex:
             c_data = i_data + 1j * q_data
             data_obj = pylabframe.data.NumericalData(c_data, x_axis=time_axis, axes_names=['time'], metadata=metadata)
         else:
-            data_obj = pylabframe.data.NumericalData([i_data, q_data], transpose=True, x_axis=time_axis, y_axis=['i', 'q'], axes_names=['time', 'quadrature'], metadata=metadata)
+            data_obj = pylabframe.data.NumericalData([i_data, q_data, envelope_data], transpose=True, x_axis=time_axis, y_axis=['i', 'q', 'log_envelope'], axes_names=['time', 'quadrature'], metadata=metadata)
 
         return data_obj
 
