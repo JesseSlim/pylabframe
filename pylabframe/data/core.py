@@ -491,13 +491,18 @@ class FitResult:
         plot_kw.setdefault('marker', None)
         return fit_data.plot(plot_axis=plot_axis, **plot_kw)
 
-    def summary(self, do_print=True, do_return=False, sigmas=2, sci_not=True, num_digits=None):
+    def summary(self, do_print=True, do_return=False, sigmas=2, sci_not=True, num_digits=None, print_function=True):
         msg = (
-f"""Fit result summary
+f"""Fit result summary for {self.fit_def.get_name()}
 ==================
-fit function: {self.fit_def.get_name()}
-parameters with {sigmas}σ confidence intervals:
 """)
+        if print_function:
+            import inspect
+            msg += "fit function:\n"
+            for l in inspect.getsourcelines(self.fit_def.fit_func)[0]:
+                msg += f"    {l}"
+
+        msg += f"\nparameters with {sigmas}σ confidence intervals:\n"
         if num_digits is not None:
             num_digits = f".{num_digits}"
         else:
