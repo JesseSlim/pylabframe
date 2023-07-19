@@ -111,7 +111,7 @@ class NumericalData:
             return self.parent.iloc[idx_slices]
 
     def __init__(self, *args, data_array=None, x_axis=None, y_axis=None, z_axis=None, axes=None, axes_names=None,
-                 reduced_axes=None, metadata=None, convert_to_numpy=True, transpose=False, check_dimensions=True
+                 error_array=None, reduced_axes=None, metadata=None, convert_to_numpy=True, transpose=False, check_dimensions=True
                  ):
         if len(args) > 0:
             # in this case, take the last positional arg as the data array, and the preceding ones as axes
@@ -124,9 +124,14 @@ class NumericalData:
 
         if convert_to_numpy:
             data_array = np.asarray(data_array)
+            if error_array is not None:
+                error_array = np.asarray(error_array)
         if transpose:
             data_array = data_array.T
+            if error_array is not None:
+                error_array = error_array.T
         self.data_array = data_array
+        self.error_array = error_array
         self.axes = axes if axes is not None else []
         if convert_to_numpy:
             self.axes = [(np.asarray(a) if a is not None else None) for a in self.axes]
@@ -152,6 +157,9 @@ class NumericalData:
                         raise ValueError(f"Axis {i} is not one-dimensional but {self.axes[i].ndim}-dimensional")
                     if self.data_array.shape[i] != self.axes[i].shape[0]:
                         raise ValueError(f"Data length {self.data_array.shape[i]} does not match axis length {self.axes[i].shape[0]} along axis {i}")
+            if error_array is not None:
+                if error_array.shape != data_array.shape:
+                    raise ValueError(f"Data array and error array have incompatible shapes {self.data_array.shape} != {self.error_array.shape}")
 
     def set_axis(self, ax_index, ax_values, convert_to_numpy=True):
         if len(self.axes) < ax_index + 1:
@@ -346,7 +354,7 @@ class NumericalData:
             raise NotImplementedError(f"No plotting method available for {self.ndim}-dimensional data")
 
     def plot_1d(self, plot_axis=None, x_label=None, y_label=None, auto_label=True, apply_data_func=lambda x: x,
-                x_scaling=1., x_offset=0., y_scaling=1., y_offset=0.,
+                x_scaling=1., x_offset=0., y_scaling=1., y_offset=0., plot_errors=True, error_scaling=2.,
                 **kw):
         # set some defaults
         if 'm' not in kw and 'marker' not in kw:
@@ -359,13 +367,22 @@ class NumericalData:
         plot_y = y_scaling * (apply_data_func(self.data_array) - y_offset)
         plot_x = x_scaling * (self.x_axis - x_offset)
 
+        if self.error_array is not None:
+            plot_err = y_scaling * error_scaling * apply_data_func(self.error_array)  # depending on the data func applied, this might not make sense
+
         if not np.iscomplexobj(plot_y):
-            plot_axis.plot(plot_x, plot_y, **kw)
+            if not plot_errors or self.error_array is None:
+                lines = plot_axis.plot(plot_x, plot_y, **kw)
+            else:
+                lines = plot_axis.errorbar(plot_x, plot_y, yerr=plot_err, **kw)
         else:
             # default for complex plotting: plot both quadratures. No individual control over their appearance
             # If you want that, use apply_data_func and call the plotting function for each Q individually
-            plot_axis.plot(plot_x, np.real(plot_y), **kw)
-            plot_axis.plot(plot_x, np.imag(plot_y), **kw)
+            if not plot_errors or self.error_array is None:
+                lines = plot_axis.plot(plot_x, np.real(plot_y), **kw)
+                lines += plot_axis.plot(plot_x, np.imag(plot_y), **kw)
+            else:
+                raise NotImplementedError("Plotting complex data with error bars not yet implemented")
 
         if x_label is None and auto_label and "x_label" in self.metadata:
             x_label = self.metadata["x_label"]
@@ -379,6 +396,8 @@ class NumericalData:
                 y_label += f" ({self.metadata['y_unit']})"
         if y_label is not None:
             plot_axis.set_ylabel(y_label)
+
+        return lines
 
     def plot_2d(self, plot_axis=None, x_label=None, y_label=None, z_label=None, auto_label=True, apply_data_func=lambda x: x,
                 x_scaling=1., x_offset=0., y_scaling=1., y_offset=0., z_scaling=1., z_offset=0.,
@@ -431,8 +450,10 @@ class NumericalData:
         )
 
         popt_dict = dict(zip(fit_def.param_names, popt))
+        perr_dict = dict(zip(fit_def.param_names, np.sqrt(np.diagonal(pcov))))
+
         fit_x_range = (self.x_axis.min(), self.x_axis.max())
-        return FitResult(fit_def, popt_dict, pcov, infodict, fit_x_range)
+        return FitResult(fit_def, popt_dict, perr_dict, pcov, infodict, fit_x_range)
 
     def guess_fit(self, fit_def: "FitterDefinition"):
         guessed_params = fit_def.guess_func(self)
@@ -440,7 +461,7 @@ class NumericalData:
 
         popt_dict = dict(zip(fit_def.param_names, p0))
         fit_x_range = (self.x_axis.min(), self.x_axis.max())
-        return FitResult(fit_def, popt_dict, None, None, fit_x_range, guess=True)
+        return FitResult(fit_def, popt_dict, None, None, None, fit_x_range, guess=True)
 
 
 
@@ -448,8 +469,9 @@ class NumericalData:
 # ======================
 
 class FitResult:
-    def __init__(self, fit_def, popt_dict, pcov, infodict, fit_x_range=None, guess=False):
+    def __init__(self, fit_def, popt_dict, perr_dict, pcov, infodict, fit_x_range=None, guess=False):
         self.popt_dict = popt_dict
+        self.perr_dict = perr_dict
         self.pcov = pcov
         self.fit_def: FitterDefinition = fit_def
         self.infodict = infodict
@@ -469,6 +491,34 @@ class FitResult:
         plot_kw.setdefault('marker', None)
         return fit_data.plot(plot_axis=plot_axis, **plot_kw)
 
+    def summary(self, do_print=True, do_return=False, sigmas=2, sci_not=True, num_digits=None):
+        msg = (
+f"""Fit result summary
+==================
+fit function: {self.fit_def.get_name()}
+parameters with {sigmas}σ confidence intervals:
+""")
+        if num_digits is not None:
+            num_digits = f".{num_digits}"
+        else:
+            num_digits = ""
+        float_format = f"{{0:{num_digits}g}}" if sci_not else f"{{0:{num_digits}f}}"
+        for k,v in self.popt_dict.items():
+            kc = f"{k}:"
+            v1 = float_format.format(v)
+            v2 = ""
+            if k in self.perr_dict:
+                v2 = float_format.format(sigmas*self.perr_dict[k])
+            msg += f" > {kc: <20} {v1: <20} +/- {v2: <20}\n"
+
+        if do_print:
+            print(msg)
+
+        if do_return:
+            return msg
+
+
+
     def __call__(self, x):
         return self.fit_def.fit_func(x, **self.popt_dict)
 
@@ -481,6 +531,7 @@ class FitResult:
 
 class FitterDefinition:
     param_names = None
+    name = None
 
     @classmethod
     def fit_func(cls, x):
@@ -489,6 +540,13 @@ class FitterDefinition:
     @classmethod
     def guess_func(cls, data: NumericalData):
         return None
+
+    @classmethod
+    def get_name(cls):
+        if cls.name is not None:
+            return cls.name
+        else:
+            return cls.__name__
 
 
 # plotting utility functions

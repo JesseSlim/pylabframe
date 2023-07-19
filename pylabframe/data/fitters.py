@@ -4,7 +4,7 @@ from .core import NumericalData, FitterDefinition, FitResult
 
 
 
-def fit_def(fit_func, guess_func=None, param_names=None):
+def fit_def(fit_func, name, guess_func=None, param_names=None):
     if guess_func is None:
         guess_func = classmethod(guess_func)
 
@@ -13,8 +13,10 @@ def fit_def(fit_func, guess_func=None, param_names=None):
     def_fit_func = fit_func
     def_guess_func = guess_func
     def_param_names = param_names
+    def_name = name
     class CustomFitter(FitterDefinition):
         param_names = def_param_names
+        name = def_name
 
         fit_func = def_fit_func
         guess_func = def_guess_func
@@ -170,4 +172,25 @@ class Lorentzian(PeakedFunction):
         return {
             "area": peak_height * np.pi * hwhm,
             "linewidth": 2 * hwhm
+        }
+
+
+class Line(FitterDefinition):
+    param_names = ["a", "b"]
+
+    @classmethod
+    def fit_func(cls, x, a=1., b=0.):
+        return a*x + b
+
+    @classmethod
+    def guess_func(cls, data: NumericalData, x=None, y=None):
+        if data is not None:
+            x = data.x_axis
+            y = data.data_array
+
+        a, b = np.polyfit(x, y, deg=1)
+
+        return {
+            "a": a,
+            "b": b,
         }
