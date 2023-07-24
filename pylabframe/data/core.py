@@ -524,7 +524,7 @@ class FitResult:
         plot_kw.setdefault('marker', None)
         return fit_data.plot(plot_axis=plot_axis, **plot_kw)
 
-    def summary(self, do_print=True, do_return=False, sigmas=2, sci_not=True, num_digits=None, print_function=True):
+    def summary(self, do_print=True, do_return=False, sigmas=2, sci_not=True, num_digits=None, print_function=False):
         if num_digits is not None:
             num_digits = f".{num_digits}"
         else:
@@ -540,8 +540,9 @@ f"""Fit result summary for {self.fit_def.get_name()}
             msg += "fit function:\n"
             for l in inspect.getsourcelines(self.fit_def.fit_func)[0]:
                 msg += f"    {l}"
+            msg += "\n"
 
-        msg += f"\nfixed parameters:\n"
+        msg += f"fixed parameters:\n"
         if len(self.pfix_dict) == 0:
             msg += " > none\n"
         else:
