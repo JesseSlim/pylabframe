@@ -63,11 +63,13 @@ class PeakedFunction(FitterDefinition):
     @classmethod
     def guess_func(cls, data: NumericalData=None, x=None, y=None, offset=None, smoothing_window=1, smoothing_order=0, closely_spaced=False,
                   halfmax_thrs=0.5, binned_offset_estimation=False, smooth_postprocess=lambda x: x, take_abs=False,
-                  smooth_preprocess=lambda x: x):
+                  smooth_preprocess=lambda x: x, pfix_dict=None):
         """Guess parameters for a single peak"""
         if data is not None:
             x = data.x_axis
             y = data.data_array
+        if pfix_dict is None:
+            pfix_dict = {}
 
         if len(x) != len(y):
             raise ValueError("x and y should have the same number of elements!")
@@ -183,7 +185,10 @@ class Line(FitterDefinition):
         return a*x + b
 
     @classmethod
-    def guess_func(cls, data: NumericalData, x=None, y=None):
+    def guess_func(cls, data: NumericalData, x=None, y=None, pfix_dict=None):
+        if pfix_dict is None:
+            pfix_dict = {}
+
         if data is not None:
             x = data.x_axis
             y = data.data_array

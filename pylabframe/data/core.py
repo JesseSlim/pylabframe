@@ -437,31 +437,58 @@ class NumericalData:
 
     # fitting functions
     # =================
-    def fit(self, fit_def: "FitterDefinition", p0=None, data_transform_func=lambda x: x, **kw):
+    def fit(self, fit_def: "FitterDefinition", p0=None, p0_dict=None, pfix_dict=None, data_transform_func=None, **kw):
         # if issubclass(fit_def, fitters.FitterDefinition):
         fit_func = fit_def.fit_func
+        if pfix_dict is None:
+            pfix_dict = {}
+        if data_transform_func is None:
+            data_transform_func = lambda x: x
+            data_transform_func_save = None
+        else:
+            data_transform_func_save = data_transform_func
+
+        if p0 is None and p0_dict is None:
+            p0_dict = fit_def.guess_func(self, pfix_dict=pfix_dict)
+
+        fixed_params = list(pfix_dict.keys())
+        unknown_params = [pn for pn in fixed_params if pn not in fit_def.param_names]
+        if len(unknown_params) > 0:
+            raise ValueError(f"There are unknown fixed parameters: {unknown_params}")
+
+        free_params = [pn for pn in fit_def.param_names if pn not in fixed_params]
+
         if p0 is None:
-            guessed_params = fit_def.guess_func(self)
-            p0 = [guessed_params[pn] for pn in fit_def.param_names]
+            p0 = [p0_dict[pn] for pn in free_params]
+
+        def fit_func_wrapper(xdata, *params):
+            all_params = dict(zip(free_params, params))
+            all_params.update(pfix_dict)
+            return data_transform_func(fit_func(xdata, **all_params))
 
         popt, pcov, infodict, mesg, ier = scipy.optimize.curve_fit(
-            lambda *args, **kw: data_transform_func(fit_func(*args, **kw)),
-            self.x_axis, data_transform_func(self.data_array), p0=p0, full_output=True, **kw
+            fit_func_wrapper, self.x_axis, data_transform_func(self.data_array), p0=p0, full_output=True, **kw
         )
 
-        popt_dict = dict(zip(fit_def.param_names, popt))
-        perr_dict = dict(zip(fit_def.param_names, np.sqrt(np.diagonal(pcov))))
+        popt_dict = dict(zip(free_params, popt))
+        perr_dict = dict(zip(free_params, np.sqrt(np.diagonal(pcov))))
 
         fit_x_range = (self.x_axis.min(), self.x_axis.max())
-        return FitResult(fit_def, popt_dict, perr_dict, pcov, infodict, fit_x_range)
+        return FitResult(fit_def, popt_dict=popt_dict, perr_dict=perr_dict, pcov=pcov,
+                         fit_info=infodict, fit_x_range=fit_x_range, pfix_dict=pfix_dict,
+                         data_transform_func=data_transform_func_save)
 
-    def guess_fit(self, fit_def: "FitterDefinition"):
-        guessed_params = fit_def.guess_func(self)
-        p0 = [guessed_params[pn] for pn in fit_def.param_names]
+    def guess_fit(self, fit_def: "FitterDefinition", pfix_dict=None):
+        if pfix_dict is None:
+            pfix_dict = {}
+        guessed_params = fit_def.guess_func(self, pfix_dict=pfix_dict)
+        # p0 = [guessed_params[pn] for pn in fit_def.param_names]
+        # popt_dict = dict(zip(fit_def.param_names, p0))
 
-        popt_dict = dict(zip(fit_def.param_names, p0))
+        popt_dict = guessed_params
+
         fit_x_range = (self.x_axis.min(), self.x_axis.max())
-        return FitResult(fit_def, popt_dict, None, None, None, fit_x_range, guess=True)
+        return FitResult(fit_def, popt_dict, None, None, None, fit_x_range, guess=True, pfix_dict=pfix_dict)
 
 
 
@@ -469,14 +496,20 @@ class NumericalData:
 # ======================
 
 class FitResult:
-    def __init__(self, fit_def, popt_dict, perr_dict, pcov, infodict, fit_x_range=None, guess=False):
+    def __init__(self, fit_def, popt_dict, perr_dict, pcov, fit_info, fit_x_range=None, guess=False, pfix_dict=None,
+                 data_transform_func=None):
+        if pfix_dict is None:
+            pfix_dict = {}
+
         self.popt_dict = popt_dict
         self.perr_dict = perr_dict
+        self.pfix_dict = pfix_dict
         self.pcov = pcov
         self.fit_def: FitterDefinition = fit_def
-        self.infodict = infodict
+        self.fit_info = fit_info
         self.fit_x_range = fit_x_range
         self.guess = guess
+        self.data_transform_func = data_transform_func
 
     def plot(self, x_start=None, x_stop=None, x_num=1001, x=None, plot_axis=None, **plot_kw):
         if x is None:
@@ -492,6 +525,12 @@ class FitResult:
         return fit_data.plot(plot_axis=plot_axis, **plot_kw)
 
     def summary(self, do_print=True, do_return=False, sigmas=2, sci_not=True, num_digits=None, print_function=True):
+        if num_digits is not None:
+            num_digits = f".{num_digits}"
+        else:
+            num_digits = ""
+        float_format = f"{{0:{num_digits}e}}" if sci_not else f"{{0:{num_digits}f}}"
+
         msg = (
 f"""Fit result summary for {self.fit_def.get_name()}
 ==================
@@ -502,12 +541,16 @@ f"""Fit result summary for {self.fit_def.get_name()}
             for l in inspect.getsourcelines(self.fit_def.fit_func)[0]:
                 msg += f"    {l}"
 
-        msg += f"\nparameters with {sigmas}σ confidence intervals:\n"
-        if num_digits is not None:
-            num_digits = f".{num_digits}"
+        msg += f"\nfixed parameters:\n"
+        if len(self.pfix_dict) == 0:
+            msg += " > none\n"
         else:
-            num_digits = ""
-        float_format = f"{{0:{num_digits}g}}" if sci_not else f"{{0:{num_digits}f}}"
+            for k,v in self.pfix_dict.items():
+                kc = f"{k}:"
+                v1 = float_format.format(v)
+                msg += f" > {kc: <20} {v1: <20}\n"
+
+        msg += f"\nparameters with {sigmas}σ confidence intervals:\n"
         for k,v in self.popt_dict.items():
             kc = f"{k}:"
             v1 = float_format.format(v)
@@ -522,16 +565,19 @@ f"""Fit result summary for {self.fit_def.get_name()}
         if do_return:
             return msg
 
-
-
     def __call__(self, x):
-        return self.fit_def.fit_func(x, **self.popt_dict)
+        return self.fit_def.fit_func(x, **self.popt_dict, **self.pfix_dict)
 
     def __repr__(self):
-        return f"FitResult({self.fit_def.__name__}, {self.popt_dict}, <pcov>, ..., guess={self.guess})"
+        return f"FitResult({self.fit_def.__name__}, popt_dict={self.popt_dict}, pfix_dict={self.pfix_dict}, <pcov>, ..., guess={self.guess})"
 
     def __getitem__(self, item):
-        return self.popt_dict[item]
+        if item in self.popt_dict:
+            return self.popt_dict[item]
+        elif item in self.pfix_dict:
+            return self.pfix_dict[item]
+        else:
+            raise KeyError(item)
 
 
 class FitterDefinition:
@@ -543,7 +589,7 @@ class FitterDefinition:
         return None
 
     @classmethod
-    def guess_func(cls, data: NumericalData):
+    def guess_func(cls, data: NumericalData, pfix_dict=None):
         return None
 
     @classmethod
