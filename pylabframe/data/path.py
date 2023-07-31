@@ -151,28 +151,29 @@ def find_path(*args, parent_dir=None, in_today=False, return_multiple=False):
     return cur_parent
 
 
-def expand_default_save_location(file, add_timestamp=None, timestamp=None, ts_suffix=None, create_dirs=True, verbose=True, exist_ok=False):
+def expand_default_save_location(file, add_timestamp=None, timestamp=None, ts_suffix=None, create_dirs=True, verbose=True, exist_ok=False, save_location_option=None):
     if os.path.isabs(file):
         if not exist_ok and os.path.exists(file):
             raise FileExistsError(file)
         return file  # don't need to do any expansion
 
-    default_save_option = config.get("data.default_save_location")
-    if default_save_option == 'cwd':
+    if save_location_option is None:
+        save_location_option = config.get("data.default_save_location")
+    if save_location_option == 'cwd':
         if not exist_ok and os.path.exists(file):
             raise FileExistsError(file)
         return file
-    elif default_save_option == 'cwd_with_timestamp':
+    elif save_location_option == 'cwd_with_timestamp':
         return save_path(file, add_timestamp=add_timestamp, timestamp=timestamp, ts_suffix=ts_suffix,
                          parent_dir=False, create_dirs=create_dirs, verbose=verbose, exist_ok=exist_ok)
-    elif default_save_option == 'today_dir':
+    elif save_location_option == 'today_dir':
         return save_path(file, add_timestamp=add_timestamp, timestamp=timestamp, ts_suffix=ts_suffix,
                          parent_dir=today_dir(), create_dirs=create_dirs, verbose=verbose, exist_ok=exist_ok)
-    elif default_save_option == 'root_dir':
+    elif save_location_option == 'root_dir':
         return save_path(file, add_timestamp=add_timestamp, timestamp=timestamp, ts_suffix=ts_suffix,
                          parent_dir=root_dir(), create_dirs=create_dirs, verbose=verbose, exist_ok=exist_ok)
     else:
-        raise ValueError(f"Invalid option for default save location: {default_save_option}")
+        raise ValueError(f"Invalid option for save location: {save_location_option}")
 
 
 def require_today_dir():

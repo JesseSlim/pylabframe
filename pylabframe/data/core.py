@@ -95,10 +95,19 @@ class NumericalData:
                     if vals.start is not None:
                         # find first index along axis >= the start value
                         start_idx = np.argmax(cur_ax >= vals.start)
+                        # check if the index we found actually satifies the condition
+                        if not cur_ax[start_idx] >= vals.start:
+                            # set the start index beyond the axis length
+                            start_idx = len(cur_ax)
                     if vals.stop is not None:
                         # find last index along axis <= the stop value
                         # we do include that last value in the slice, contrary to index slicing
-                        stop_idx = len(cur_ax) - np.argmax(cur_ax[::-1] <= vals.stop)
+                        stop_idx = np.argmax(cur_ax[::-1] <= vals.stop)
+                        if cur_ax[::-1][stop_idx] <= vals.stop:
+                            stop_idx = len(cur_ax) - stop_idx
+                        else:
+                            # there is no value smaller than the stop value, meaning the slice should be empty
+                            stop_idx = 0
 
                     idx_slices += (slice(start_idx, stop_idx),)
                 else:
@@ -111,7 +120,7 @@ class NumericalData:
             return self.parent.iloc[idx_slices]
 
     def __init__(self, *args, data_array=None, x_axis=None, y_axis=None, z_axis=None, axes=None, axes_names=None,
-                 error_array=None, reduced_axes=None, metadata=None, convert_to_numpy=True, transpose=False, check_dimensions=True
+                 error_array=None, reduced_axes=None, metadata=None, convert_to_numpy=True, transpose=False, check_dimensions=True, last_fit=None
                  ):
         if len(args) > 0:
             # in this case, take the last positional arg as the data array, and the preceding ones as axes
@@ -145,6 +154,7 @@ class NumericalData:
             self.set_axis(2, z_axis, convert_to_numpy=convert_to_numpy)
 
         self.axes_names = axes_names if axes_names is not None else []
+        self.last_fit = last_fit
 
         self.iloc = self.IndexLocator(self)
         self.vloc = self.ValueLocator(self)
@@ -167,6 +177,11 @@ class NumericalData:
         if convert_to_numpy:
             ax_values = np.asarray(ax_values)
         self.axes[ax_index] = ax_values
+
+    def set_axis_name(self, ax_index, ax_name):
+        if len(self.axes_names) < ax_index + 1:
+            self.axes_names = self.axes_names + [None] * (ax_index + 1 - len(self.axes_names))
+        self.axes_names[ax_index] = ax_name
 
     @property
     def x_axis(self):
@@ -306,8 +321,8 @@ class NumericalData:
 
     # saving functions
     # ================
-    def save_npz(self, file, stringify_enums=True, save_timestamp=True, **expand_kw):
-        file = path.expand_default_save_location(file, **expand_kw)
+    def save_npz(self, file, stringify_enums=True, save_timestamp=True, save_location_option=None, **expand_kw):
+        file = path.expand_default_save_location(file, save_location_option=save_location_option, **expand_kw)
         num_axes = len(self.axes) if self.axes is not None else 0
         if num_axes > 0:
             ax_dict = {f"axis_{i}": self.axes[i] for i in range(num_axes)}
@@ -354,7 +369,7 @@ class NumericalData:
             raise NotImplementedError(f"No plotting method available for {self.ndim}-dimensional data")
 
     def plot_1d(self, plot_axis=None, x_label=None, y_label=None, auto_label=True, apply_data_func=lambda x: x,
-                x_scaling=1., x_offset=0., y_scaling=1., y_offset=0., plot_errors=True, error_scaling=2.,
+                x_scaling=1., x_offset=0., y_scaling=1., y_offset=0., plot_errors=True, error_scaling=2., transpose=False,
                 **kw):
         # set some defaults
         if 'm' not in kw and 'marker' not in kw:
@@ -369,12 +384,22 @@ class NumericalData:
 
         if self.error_array is not None:
             plot_err = y_scaling * error_scaling * apply_data_func(self.error_array)  # depending on the data func applied, this might not make sense
+        else:
+            plot_err = None
+
+        if transpose:
+            plot_x, plot_y = plot_y, plot_x
+            xerr = plot_err
+            yerr = None
+        else:
+            yerr = plot_err
+            xerr = None
 
         if not np.iscomplexobj(plot_y):
             if not plot_errors or self.error_array is None:
                 lines = plot_axis.plot(plot_x, plot_y, **kw)
             else:
-                lines = plot_axis.errorbar(plot_x, plot_y, yerr=plot_err, **kw)
+                lines = plot_axis.errorbar(plot_x, plot_y, yerr=yerr, xerr=xerr, **kw)
         else:
             # default for complex plotting: plot both quadratures. No individual control over their appearance
             # If you want that, use apply_data_func and call the plotting function for each Q individually
@@ -388,12 +413,15 @@ class NumericalData:
             x_label = self.metadata["x_label"]
             if "x_unit" in self.metadata:
                 x_label += f" ({self.metadata['x_unit']})"
-        if x_label is not None:
-            plot_axis.set_xlabel(x_label)
         if y_label is None and auto_label and "y_label" in self.metadata:
             y_label = self.metadata["y_label"]
             if "y_unit" in self.metadata:
                 y_label += f" ({self.metadata['y_unit']})"
+
+        if transpose:
+            x_label, y_label = y_label, x_label
+        if x_label is not None:
+            plot_axis.set_xlabel(x_label)
         if y_label is not None:
             plot_axis.set_ylabel(y_label)
 
@@ -442,6 +470,13 @@ class NumericalData:
         fit_func = fit_def.fit_func
         if pfix_dict is None:
             pfix_dict = {}
+        fixed_params = list(pfix_dict.keys())
+        unknown_params = [pn for pn in fixed_params if pn not in fit_def.param_names]
+        if len(unknown_params) > 0:
+            raise ValueError(f"There are unknown fixed parameters: {unknown_params}")
+
+        free_params = [pn for pn in fit_def.param_names if pn not in fixed_params]
+
         if data_transform_func is None:
             data_transform_func = lambda x: x
             data_transform_func_save = None
@@ -449,14 +484,10 @@ class NumericalData:
             data_transform_func_save = data_transform_func
 
         if p0 is None and p0_dict is None:
-            p0_dict = fit_def.guess_func(self, pfix_dict=pfix_dict)
-
-        fixed_params = list(pfix_dict.keys())
-        unknown_params = [pn for pn in fixed_params if pn not in fit_def.param_names]
-        if len(unknown_params) > 0:
-            raise ValueError(f"There are unknown fixed parameters: {unknown_params}")
-
-        free_params = [pn for pn in fit_def.param_names if pn not in fixed_params]
+            if fit_def.guess_func:
+                p0_dict = fit_def.guess_func(self, pfix_dict=pfix_dict)
+            else:
+                p0 = [1.] * len(free_params)
 
         if p0 is None:
             p0 = [p0_dict[pn] for pn in free_params]
@@ -474,9 +505,11 @@ class NumericalData:
         perr_dict = dict(zip(free_params, np.sqrt(np.diagonal(pcov))))
 
         fit_x_range = (self.x_axis.min(), self.x_axis.max())
-        return FitResult(fit_def, popt_dict=popt_dict, perr_dict=perr_dict, pcov=pcov,
+        this_fit = FitResult(fit_def, popt_dict=popt_dict, perr_dict=perr_dict, pcov=pcov,
                          fit_info=infodict, fit_x_range=fit_x_range, pfix_dict=pfix_dict,
                          data_transform_func=data_transform_func_save)
+        self.last_fit = this_fit
+        return this_fit
 
     def guess_fit(self, fit_def: "FitterDefinition", pfix_dict=None):
         if pfix_dict is None:

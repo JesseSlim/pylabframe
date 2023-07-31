@@ -5,8 +5,9 @@ from .core import NumericalData, FitterDefinition, FitResult
 
 
 def fit_def(fit_func, name, guess_func=None, param_names=None):
-    if guess_func is None:
-        guess_func = classmethod(guess_func)
+    # I don't think this is the right way to go
+    # if guess_func is not None:
+    #     guess_func = classmethod(guess_func)
 
     # this stuff is necessary
     # see https://stackoverflow.com/a/4296729
@@ -174,6 +175,22 @@ class Lorentzian(PeakedFunction):
         return {
             "area": peak_height * np.pi * hwhm,
             "linewidth": 2 * hwhm
+        }
+
+
+class Gaussian(PeakedFunction):
+    param_names = ["amplitude", "sigma", "center", "offset"]
+
+    @staticmethod
+    def single_peak_func(x, amplitude=1., sigma=1., center=0., offset=0.):
+        return offset + amplitude * np.exp(-0.5 * (x - center) ** 2 / sigma ** 2)
+
+    @staticmethod
+    def peak_guess_to_func_params(peak_height, hwhm):
+        """Convert guessed peak values to function parameters"""
+        return {
+            "amplitude": peak_height,
+            "sigma": 0.8493 * hwhm
         }
 
 
