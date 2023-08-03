@@ -102,16 +102,51 @@ def visa_property(visa_cmd: str, dtype=None, read_only=False, read_conv=str, wri
     return prop
 
 
-def visa_command(visa_cmd, wait_until_done=False):
+def visa_command(visa_cmd, wait_until_done=False, kwarg_defaults=None):
+    if kwarg_defaults is None:
+        kwarg_defaults = {}
     def visa_executer(self: "VisaDevice", **kw):
         if hasattr(self, "query_params"):
             kw.update(self.query_params)
 
-        fmt_visa_cmd = visa_cmd.format(**kw)
+        kw_plus_defaults = {
+            **kwarg_defaults,
+            **kw
+        }
+        try:
+            fmt_visa_cmd = visa_cmd.format(**kw_plus_defaults)
+        except KeyError as e:
+            # TODO: raise an error as well for unused arguments (using string.Formatter & check_unused_args)
+            raise ValueError(f"Missing argument {e.args[0]} in VISA command {visa_cmd}")
         if wait_until_done:
             return self.wait_until_done(fmt_visa_cmd)
         else:
             return self.instr.write(fmt_visa_cmd)
+
+    return visa_executer
+
+
+def visa_query(visa_cmd, kwarg_defaults=None, binary=False, **query_kw):
+    if kwarg_defaults is None:
+        kwarg_defaults = {}
+    def visa_executer(self: "VisaDevice", **kw):
+        if hasattr(self, "query_params"):
+            kw.update(self.query_params)
+
+        kw_plus_defaults = {
+            **kwarg_defaults,
+            **kw
+        }
+        try:
+            fmt_visa_cmd = visa_cmd.format(**kw_plus_defaults)
+        except KeyError as e:
+            # TODO: raise an error as well for unused arguments (using string.Formatter & check_unused_args)
+            raise ValueError(f"Missing argument {e.args[0]} in VISA command {visa_cmd}")
+
+        if not binary:
+            return self.instr.query(fmt_visa_cmd, **query_kw)
+        else:
+            return self.instr.query_binary_values(fmt_visa_cmd, datatype='s', container=bytes, **query_kw)
 
     return visa_executer
 
@@ -126,6 +161,9 @@ class VisaDevice(device.Device):
         if self.instr:
             self.instr.close()
             del self.instr
+
+    def setup(self, *args, **kw):
+        pass
 
     @classmethod
     def list_available(cls):

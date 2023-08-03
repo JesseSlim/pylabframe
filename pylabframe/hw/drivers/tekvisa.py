@@ -1,9 +1,11 @@
+import os.path
+
 import numpy as np
 from enum import Enum
 
 from pylabframe.hw import device, visadevice
 from pylabframe.hw.device import str_conv, SettingEnum, intbool_conv
-from pylabframe.hw.visadevice import visa_property, visa_command
+from pylabframe.hw.visadevice import visa_property, visa_command, visa_query
 import pylabframe.data
 
 
@@ -22,6 +24,11 @@ class TektronixScope(visadevice.VisaDevice):
 
         # initialize channels
         self.channels: list[TektronixScope.Channel] = [self.Channel(i+1, self) for i in range(self.NUM_CHANNELS)]
+
+        self.setup()
+
+    def setup(self, *args, **kw):
+        self.instr.write("header 0")
 
     # global scpi properties
     trace_points = visa_property("horizontal:recordlength", rw_conv=int)
@@ -96,3 +103,14 @@ class TektronixScope(visadevice.VisaDevice):
         def acquire_waveform(self, start=1, stop=None):
             return self.device.acquire_channel_waveform(self.channel_id, start=start, stop=stop)
 
+    # trace saving to file and file handling
+    save_trace_to_file = visa_command('save:waveform ch{channel_id},"{file_name}"')
+    save_setup_to_file = visa_command('save:setup "{file_name}"')
+    transfer_file_content = visa_query('filesystem:readfile "{file_name}"', binary=True)
+
+    def save_file_content(self, source_file_name, dest_file_name, dest_exist_ok=False):
+        if not dest_exist_ok and os.path.exists(dest_file_name):
+            raise FileExistsError(dest_file_name)
+        with open(dest_file_name, "wb") as dest_f:
+            file_data = self.transfer_file_content(file_name=source_file_name)
+            dest_f.write(file_data)
