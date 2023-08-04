@@ -35,6 +35,7 @@ class TektronixScope(visadevice.VisaDevice):
     run_mode = visa_property("acquire:stopafter", read_conv=RunModes)
     running = visa_property("acquire:state", read_conv=intbool_conv, write_conv=int)
     x_scale = visa_property("horizontal:scale", rw_conv=float)
+    sample_rate = visa_property("horizontal:mode:samplerate", dtype=float)
 
     # (I think there are better/more specific commands to do this, but it works)
     initiate_single_acquisition = visa_command("fpanel:press single")

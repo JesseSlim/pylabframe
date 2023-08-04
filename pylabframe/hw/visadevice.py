@@ -1,3 +1,5 @@
+import time
+
 import pyvisa
 from . import device
 
@@ -10,7 +12,7 @@ class EventStatusRegister:
     class Functions(IntEnum):
         OPC = 0
         RQC = 1
-        QYE = 2
+        QYE = 2   # query error
         DDE = 3
         EXE = 4
         CME = 5
@@ -102,10 +104,20 @@ def visa_property(visa_cmd: str, dtype=None, read_only=False, read_conv=str, wri
     return prop
 
 
-def visa_command(visa_cmd, wait_until_done=False, kwarg_defaults=None):
+def visa_command(visa_cmd, wait_until_done=False, kwarg_defaults=None, wait_before=False, max_wait=False):
     if kwarg_defaults is None:
         kwarg_defaults = {}
-    def visa_executer(self: "VisaDevice", **kw):
+    wait_until_done_default = wait_until_done
+    wait_before_default = wait_before
+    max_wait_default = max_wait
+
+    def visa_executer(self: "VisaDevice", wait_until_done=None, wait_before=None, max_wait=None, **kw):
+        if wait_until_done is None:
+            wait_until_done = wait_until_done_default
+        if wait_before is None:
+            wait_before = wait_before_default
+        if max_wait is None:
+            max_wait = max_wait_default
         if hasattr(self, "query_params"):
             kw.update(self.query_params)
 
@@ -117,9 +129,11 @@ def visa_command(visa_cmd, wait_until_done=False, kwarg_defaults=None):
             fmt_visa_cmd = visa_cmd.format(**kw_plus_defaults)
         except KeyError as e:
             # TODO: raise an error as well for unused arguments (using string.Formatter & check_unused_args)
-            raise ValueError(f"Missing argument {e.args[0]} in VISA command {visa_cmd}")
+            raise ValueError(f"Missing argument {e.args[0]} in VISA command '{visa_cmd}'")
+        if wait_before:
+            fmt_visa_cmd = "*WAI;" + fmt_visa_cmd
         if wait_until_done:
-            return self.wait_until_done(fmt_visa_cmd)
+            return self.wait_until_done(fmt_visa_cmd, max_wait=max_wait)
         else:
             return self.instr.write(fmt_visa_cmd)
 
@@ -141,7 +155,7 @@ def visa_query(visa_cmd, kwarg_defaults=None, binary=False, **query_kw):
             fmt_visa_cmd = visa_cmd.format(**kw_plus_defaults)
         except KeyError as e:
             # TODO: raise an error as well for unused arguments (using string.Formatter & check_unused_args)
-            raise ValueError(f"Missing argument {e.args[0]} in VISA command {visa_cmd}")
+            raise ValueError(f"Missing argument {e.args[0]} in VISA command '{visa_cmd}'")
 
         if not binary:
             return self.instr.query(fmt_visa_cmd, **query_kw)
@@ -175,14 +189,17 @@ class VisaDevice(device.Device):
             response = response.strip()
         return response
 
-    def wait_until_done(self, visa_cmd=None):
+    def wait_until_done(self, visa_cmd=None, max_wait=False):
         if visa_cmd is not None:
             cmd_string = f"{visa_cmd};*OPC?"
         else:
             cmd_string = "*OPC?"
+        start_time = time.perf_counter()
         self.instr.write(cmd_string)
         is_done = False
         while not is_done:
+            if max_wait is not False and time.perf_counter() - start_time > max_wait:
+                raise TimeoutError(f"Exceeded the maximum waiting time of {max_wait} s")
             try:
                 result_code = self.instr.read()
                 is_done = True
@@ -193,5 +210,6 @@ class VisaDevice(device.Device):
         return result_code
 
     ## standard SCPI commands
-    clear_status_register = visa_command("*cls")
-    status_register = visa_property("*esr", dtype=EventStatusRegister, read_only=True)
+    clear_status = visa_command("*CLS")
+    status_register = visa_property("*ESR", dtype=EventStatusRegister, read_only=True)
+    status_byte = visa_property("*STB", dtype=int, read_only=True)

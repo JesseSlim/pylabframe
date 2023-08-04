@@ -178,6 +178,23 @@ class Lorentzian(PeakedFunction):
         }
 
 
+class LorentzianPlusLinear(FitterDefinition):
+    param_names = ["area", "linewidth", "center", "offset", "linear_slope"]
+
+    @classmethod
+    def fit_func(cls, x, area, linewidth, center, offset, linear_slope):
+        return offset + (2/np.pi) * area * linewidth / (4*(x-center)**2 + linewidth**2) + (x-center) * linear_slope
+
+    @classmethod
+    def guess_func(cls, data: NumericalData, x=None, y=None, pfix_dict=None):
+        lorentzian_guess = data.guess_fit(Lorentzian, pfix_dict=pfix_dict)
+        return {
+            **lorentzian_guess.popt_dict,
+            "linear_slope": 0.
+        }
+
+
+
 class Gaussian(PeakedFunction):
     param_names = ["amplitude", "sigma", "center", "offset"]
 
