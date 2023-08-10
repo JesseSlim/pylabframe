@@ -103,13 +103,19 @@ def print(default=False):
         pprint.pprint(_default_settings)
 
 
-def get(key=None):
+def get(key=None, default=None):
     if key == None:
         return copy.deepcopy(_loaded_settings)
     try:
         return _get(key, _loaded_settings)
     except (KeyError, TypeError):
-        return _get(key, _default_settings)
+        try:
+            return _get(key, _default_settings)
+        except (KeyError, TypeError) as e:
+            if default is not None:
+                return default
+            else:
+                raise e
 
 
 def _get(key, settings_dict):
