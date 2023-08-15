@@ -22,6 +22,12 @@ class TSL(visadevice.VisaDevice):
         nm = "0"
         THz = "1"
 
+    class SweepModes(SettingEnum):
+        STEP_ONE_WAY = "0"
+        SWEEP_ONE_WAY = "1"
+        STEP_TWO_WAY = "2"
+        SWEEP_TWO_WAY = "3"
+
     trigger_external = visa_property(":trigger:input:external", dtype=bool)
     trigger_standby = visa_property(":trigger:input:standby", dtype=bool)
 
@@ -41,3 +47,5 @@ class TSL(visadevice.VisaDevice):
     sweep_wavelength_start = visa_property(":wavelength:sweep:start", dtype=float)
     sweep_wavelength_stop = visa_property(":wavelength:sweep:stop", dtype=float)
     sweep_wavelength_speed = visa_property(":wavelength:sweep:speed", dtype=float)
+    sweep_mode = visa_property(":wavelength:sweep:mode", dtype=SweepModes)
+    sweep_single = visa_command(":wavelength:sweep:state 1")
