@@ -310,10 +310,23 @@ class NumericalData:
             self.axes[axis] = np.take(self.axes[axis], sort_idx, axis=0)
             self.data_array = np.take(self.data_array, sort_idx, axis=axis)
 
-    def copy(self):
+    def copy(self, apply_data_func=None, apply_axis_funcs=()):
+        if apply_data_func is not None:
+            new_data_array = apply_data_func(self.data_array)
+        else:
+            new_data_array = self.data_array.copy()
+
+        new_axes = []
+        for i, orig_axis in enumerate(self.axes):
+            try:
+                axis_func = apply_axis_funcs[i]
+            except (IndexError, KeyError):
+                axis_func = lambda a: a.copy()
+            new_axes.append(axis_func(orig_axis))
+
         return type(self)(
-            data_array=self.data_array.copy(),
-            axes=[a.copy() for a in self.axes],
+            data_array=new_data_array,
+            axes=new_axes,
             axes_names=copy.deepcopy(self.axes_names),
             reduced_axes=copy.deepcopy(self.reduced_axes),
             metadata=copy.deepcopy(self.metadata)
