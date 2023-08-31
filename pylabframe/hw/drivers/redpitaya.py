@@ -1,21 +1,30 @@
 import numpy as np
 from enum import Enum
+import os
+import warnings
+import time
 
 import pylabframe as lab
 
+from pylabframe import config
 from pylabframe.hw import device
-from pylabframe.hw.device import str_conv, SettingEnum, intbool_conv
+from pylabframe.hw.device import str_conv, SettingEnum, intbool_conv, Device
 import pylabframe.data
 
+if lab.config.get("drivers.pyrpl.user_dir", False) is not False:
+    os.environ["PYRPL_USER_DIR"] = lab.config.get("drivers.pyrpl.user_dir")
+else:
+    warnings.warn(
+        "No configuration directory for PyRPL specified. Note that you need to load your config file before importing the RedPitaya driver if you want to set it."
+    )
 
-if lab.config.get("drivers.pyrpl.user_dir", None) is not None:
-    os.environ["PYRPL_USER_DIR"] = lab.config.get("drivers.pyrpl.user_dir", None)
+# we're now ready to import pyrpl
 from pyrpl import Pyrpl
 import pyrpl
 
 class RedPitaya(Device):
-    def __init__(self, hostname, port=None, config_file=None, **config_args):
-        super().__init__()
+    def __init__(self, id, hostname, port=None, config_file=None, error_on_double_connect=True, **config_args):
+        super().__init__(id, error_on_double_connect=error_on_double_connect)
         config_args["hostname"] = hostname
         if port is not None:
             config_args["port"] = port

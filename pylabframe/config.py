@@ -154,6 +154,7 @@ _post_config_hooks = []
 
 def register_post_config_hook(func):
     _post_config_hooks.append(func)
+    return func
 
 
 def _post_config():
