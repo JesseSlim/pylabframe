@@ -1,6 +1,7 @@
 import numpy as np
 import scipy
 from .core import NumericalData, FitterDefinition, FitResult
+from . import helpers
 
 
 
@@ -61,6 +62,8 @@ def complex_savgol_filter(x, *args, **kw):
 # ===================
 
 class PeakedFunction(FitterDefinition):
+    convert_to_dB = False
+
     @classmethod
     def guess_func(cls, data: NumericalData=None, x=None, y=None, offset=None, smoothing_window=1, smoothing_order=0, closely_spaced=False,
                   halfmax_thrs=0.5, binned_offset_estimation=False, smooth_postprocess=lambda x: x, take_abs=False,
@@ -86,6 +89,9 @@ class PeakedFunction(FitterDefinition):
             smoothed_data_abs = np.abs(smoothed_data)
         else:
             smoothed_data_abs = smoothed_data.copy()
+
+        if cls.convert_to_dB:
+            smoothed_data_abs = helpers.convert_spectrum_unit(smoothed_data_abs, helpers.SpectrumUnits.LOG_POWER, helpers.SpectrumUnits.LINEAR_POWER)
 
         idx_max = np.argmax(smoothed_data_abs)
         x0 = x[idx_max]
@@ -159,7 +165,10 @@ class PeakedFunction(FitterDefinition):
 
     @classmethod
     def fit_func(cls, x, *args, **kwargs):
-        return cls.single_peak_func(x, *args, **kwargs)
+        y = cls.single_peak_func(x, *args, **kwargs)
+        if cls.convert_to_dB:
+            y = helpers.convert_spectrum_unit(y, helpers.SpectrumUnits.LINEAR_POWER, helpers.SpectrumUnits.LOG_POWER)
+        return y
 
 
 class Lorentzian(PeakedFunction):
@@ -176,6 +185,10 @@ class Lorentzian(PeakedFunction):
             "area": peak_height * np.pi * hwhm,
             "linewidth": 2 * hwhm
         }
+
+
+class LogLorentzian(Lorentzian):
+    convert_to_dB = True
 
 
 class LorentzianPlusLinear(FitterDefinition):
