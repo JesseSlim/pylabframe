@@ -76,6 +76,10 @@ def visa_property(visa_cmd: str, dtype=None, read_only=False, read_conv=str, wri
             if issubclass(dtype, device.SettingEnum):
                 write_conv = str
 
+    # we use this dict to pass the property object into the getter/setter functions
+    # such that these functions can look up their options in self.command_options
+    property_info = {}
+
     def visa_getter(self: "VisaDevice"):
         if access_guard is not None:
             access_guard(self)
@@ -87,6 +91,12 @@ def visa_property(visa_cmd: str, dtype=None, read_only=False, read_conv=str, wri
         # we end the command with a configurable suffix, usually ? for SCPI settings
         response = self.instr.query(f"{fmt_visa_cmd}{get_suffix}")
         response = read_conv(response.strip())
+
+        # apply configurable transformations
+        this_prop = property_info['property_object']
+        if this_prop in self.command_options:
+            response = visa_read_value_transform(response, **self.command_options[this_prop])
+
         return response
 
     if not read_only:
@@ -97,8 +107,16 @@ def visa_property(visa_cmd: str, dtype=None, read_only=False, read_conv=str, wri
             fmt_visa_cmd = visa_cmd
             if hasattr(self, "query_params"):
                 fmt_visa_cmd = fmt_visa_cmd.format(**self.query_params)
+
+            # apply configurable transformations
+            this_prop = property_info['property_object']
+            if this_prop in self.command_options:
+                value = visa_write_value_transform(value, **self.command_options[this_prop])
+
+            value = write_conv(value)
+
             # we squeeze in a configurable delimiter (default is space)
-            cmd = f"{fmt_visa_cmd}{set_cmd_delimiter}{write_conv(value)}"
+            cmd = f"{fmt_visa_cmd}{set_cmd_delimiter}{value}"
             if not read_on_write:
                 self.instr.write(cmd)
             else:
@@ -109,6 +127,7 @@ def visa_property(visa_cmd: str, dtype=None, read_only=False, read_conv=str, wri
         visa_setter = None
 
     prop = property(visa_getter, visa_setter)
+    property_info['property_object'] = prop
 
     return prop
 
@@ -182,11 +201,32 @@ def visa_query(visa_cmd, kwarg_defaults=None, binary=False, **query_kw):
     return visa_executer
 
 
+def visa_read_value_transform(val, value_multiplier=None, **kw):
+    if value_multiplier is not None:
+        # upon read, multiply
+        val = val * value_multiplier
+    return val
+
+
+def visa_write_value_transform(val, value_multiplier=None, **kw):
+    if value_multiplier is not None:
+        # upon write, divide
+        val = val / value_multiplier
+    return val
+
+
 class VisaDevice(device.Device):
-    def __init__(self, id, address, error_on_double_connect=True, **kw):
+    def __init__(self, id, address, error_on_double_connect=True, command_options=None, **kw):
         super().__init__(id, error_on_double_connect=error_on_double_connect)
         self.address = address
         self.instr: pyvisa.resources.messagebased.MessageBasedResource = _visa_rm.open_resource(address, **kw)
+
+        # construct command options
+        self.command_options = {}
+        if command_options is not None:
+            for k,v in command_options.items():
+                cmd_obj = self.look_up_command_object(k)
+                self.command_options[cmd_obj] = v
 
     def __del__(self):
         if self.instr:
@@ -225,6 +265,39 @@ class VisaDevice(device.Device):
                     # re-raise anything other than a time-out
                     raise e
         return result_code
+
+    def look_up_command_object(self, cmd):
+        if isinstance(cmd, str):
+            if not hasattr(type(self), cmd):
+                raise ValueError(f"Visa command '{cmd}' cannot be found.")
+            cmd = getattr(type(self), cmd)
+        if not issubclass(cmd, property) and not callable(cmd):
+            raise ValueError(f"Invalid command object '{cmd}'. Hint: don't supply <device>.<command> (e.g. my_laser.wavelength), which references the value of the property, not the command object itself. Supply either 'type(<device>).<command>' (e.g. type(my_laser).wavelength) or the name of the command (e.g. 'wavelength')")
+
+        return cmd
+
+    def set_command_option(self, cmd, value_multiplier=None, **kw):
+        cmd = self.look_up_command_object(cmd)
+        if cmd not in self.command_options:
+            self.command_options[cmd] = {}
+
+        if value_multiplier is not None:
+            kw['value_multiplier'] = value_multiplier
+
+        for k,v in kw.items():
+            self.command_options[cmd][k] = v
+
+    def remove_command_option(self, cmd, value_multiplier=False, **kw):
+        cmd = self.look_up_command_object(cmd)
+        if cmd not in self.command_options:
+            return
+
+        if value_multiplier:
+            kw['value_multiplier'] = True
+
+        for k,v in kw.items():
+            if v and k in self.command_options[cmd]:
+                del self.command_options[cmd][k]
 
     ## standard SCPI commands
     clear_status = visa_command("*CLS")

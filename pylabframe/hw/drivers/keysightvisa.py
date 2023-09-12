@@ -67,10 +67,8 @@ class KeysightESA(visadevice.VisaDevice):
         "y_unit"
     ]
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.instr.write_termination = '\n'
-        self.instr.read_termination = '\n'
+    def __init__(self, *args, read_termination='\n', write_termination='\n', **kwargs):
+        super().__init__(*args, read_termination=read_termination, write_termination=write_termination, **kwargs)
 
     # access guard methods
     def require_iq_mode(self):
