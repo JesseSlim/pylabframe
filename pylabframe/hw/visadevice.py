@@ -61,7 +61,9 @@ DTYPE_CONVERTERS = {
 }
 
 
-def visa_property(visa_cmd: str, dtype=None, read_only=False, read_conv=str, write_conv=str, rw_conv=None, access_guard=None):
+def visa_property(visa_cmd: str, dtype=None, read_only=False, read_conv=str, write_conv=str, rw_conv=None,
+                  access_guard=None, read_suffix="?", read_on_write=False, write_cmd_delimiter=" ",
+                  ):
     if rw_conv is not None:
         read_conv = rw_conv
         write_conv = rw_conv
@@ -82,7 +84,8 @@ def visa_property(visa_cmd: str, dtype=None, read_only=False, read_conv=str, wri
         if hasattr(self, "query_params"):
             # doing this gives us access to object properties (eg channel id) that can be put in the command string
             fmt_visa_cmd = fmt_visa_cmd.format(**self.query_params)
-        response = self.instr.query(f"{fmt_visa_cmd}?")
+        # we end the command with a configurable suffix, usually ? for SCPI settings
+        response = self.instr.query(f"{fmt_visa_cmd}{read_suffix}")
         response = read_conv(response.strip())
         return response
 
@@ -94,8 +97,14 @@ def visa_property(visa_cmd: str, dtype=None, read_only=False, read_conv=str, wri
             fmt_visa_cmd = visa_cmd
             if hasattr(self, "query_params"):
                 fmt_visa_cmd = fmt_visa_cmd.format(**self.query_params)
-            cmd = f"{fmt_visa_cmd} {write_conv(value)}"
-            self.instr.write(cmd)
+            # we squeeze in a configurable delimiter (default is space)
+            cmd = f"{fmt_visa_cmd}{set_cmd_delimiter}{write_conv(value)}"
+            if not read_on_write:
+                self.instr.write(cmd)
+            else:
+                # some devices return a value upon setting, optionally read that out to clear the buffer
+                # we discard the response, nothing we can do with it here
+                self.instr.query(cmd)
     else:
         visa_setter = None
 
@@ -104,20 +113,23 @@ def visa_property(visa_cmd: str, dtype=None, read_only=False, read_conv=str, wri
     return prop
 
 
-def visa_command(visa_cmd, wait_until_done=False, kwarg_defaults=None, wait_before=False, max_wait=False):
+def visa_command(visa_cmd, wait_until_done=False, kwarg_defaults=None, wait_before=False, max_wait=False, read_on_write=False):
     if kwarg_defaults is None:
         kwarg_defaults = {}
     wait_until_done_default = wait_until_done
     wait_before_default = wait_before
     max_wait_default = max_wait
+    read_on_write_default = read_on_write
 
-    def visa_executer(self: "VisaDevice", wait_until_done=None, wait_before=None, max_wait=None, **kw):
+    def visa_executer(self: "VisaDevice", wait_until_done=None, wait_before=None, max_wait=None, read_on_write=None, **kw):
         if wait_until_done is None:
             wait_until_done = wait_until_done_default
         if wait_before is None:
             wait_before = wait_before_default
         if max_wait is None:
             max_wait = max_wait_default
+        if read_on_write is None:
+            read_on_write = read_on_write_default
         if hasattr(self, "query_params"):
             kw.update(self.query_params)
 
@@ -135,7 +147,12 @@ def visa_command(visa_cmd, wait_until_done=False, kwarg_defaults=None, wait_befo
         if wait_until_done:
             return self.wait_until_done(fmt_visa_cmd, max_wait=max_wait)
         else:
-            return self.instr.write(fmt_visa_cmd)
+            if not read_on_write:
+                return self.instr.write(fmt_visa_cmd)
+            else:
+                # some devices return a value upon setting, optionally read that out to clear the buffer
+                # return the response
+                return self.instr.query(fmt_visa_cmd)
 
     return visa_executer
 
