@@ -62,7 +62,7 @@ DTYPE_CONVERTERS = {
 
 
 def visa_property(visa_cmd: str, dtype=None, read_only=False, read_conv=str, write_conv=str, rw_conv=None,
-                  access_guard=None, read_suffix="?", read_on_write=False, write_cmd_delimiter=" ",
+                  access_guard=None, get_suffix="?", read_on_write=False, set_cmd_delimiter=" ",
                   ):
     if rw_conv is not None:
         read_conv = rw_conv
@@ -85,7 +85,7 @@ def visa_property(visa_cmd: str, dtype=None, read_only=False, read_conv=str, wri
             # doing this gives us access to object properties (eg channel id) that can be put in the command string
             fmt_visa_cmd = fmt_visa_cmd.format(**self.query_params)
         # we end the command with a configurable suffix, usually ? for SCPI settings
-        response = self.instr.query(f"{fmt_visa_cmd}{read_suffix}")
+        response = self.instr.query(f"{fmt_visa_cmd}{get_suffix}")
         response = read_conv(response.strip())
         return response
 

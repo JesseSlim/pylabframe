@@ -9,10 +9,10 @@ import pylabframe.data
 
 class TSLEnums:
     class OutputTriggerModes(SettingEnum):
-        NONE = "0"
-        STOP = "1"
-        START = "2"
-        STEP = "3"
+        NONE = "+0"
+        STOP = "+1"
+        START = "+2"
+        STEP = "+3"
 
     class PowerUnit(SettingEnum):
         dBm = "0"
@@ -23,10 +23,14 @@ class TSLEnums:
         THz = "1"
 
     class SweepModes(SettingEnum):
-        STEP_ONE_WAY = "0"
-        SWEEP_ONE_WAY = "1"
-        STEP_TWO_WAY = "2"
-        SWEEP_TWO_WAY = "3"
+        STEP_ONE_WAY = "+0"
+        SWEEP_ONE_WAY = "+1"
+        STEP_TWO_WAY = "+2"
+        SWEEP_TWO_WAY = "+3"
+
+    class SCPIModes(SettingEnum):
+        TSL_550 = "+0"
+        TSL_770 = "+1"
 
 
 class TSL_SCPICommands(visadevice.VisaDevice, TSLEnums):
@@ -56,6 +60,8 @@ class TSL_SCPICommands(visadevice.VisaDevice, TSLEnums):
     sweep_mode = visa_property(":wavelength:sweep:mode", dtype=TSLEnums.SweepModes)
     sweep_single = visa_command(":wavelength:sweep:state 1")
 
+    scpi_mode = visa_property(":system:communicate:code", dtype=TSLEnums.SCPIModes)
+
     ## define these function for compatibilty with the Santec command class
     def turn_diode_on(self):
         self.laser_diode_on = True
@@ -71,9 +77,9 @@ class TSL_SCPICommands(visadevice.VisaDevice, TSLEnums):
 
 
 def santec_property(visa_cmd, dtype=None, read_only=False, **kw):
-    kw.setdefault("read_suffix", "")
+    kw.setdefault("get_suffix", "")
     kw.setdefault("read_on_write", True)
-    kw.setdefault("write_cmd_delimiter", "")
+    kw.setdefault("set_cmd_delimiter", "")
     return visa_property(visa_cmd, dtype=dtype, read_only=read_only, **kw)
 
 
@@ -97,3 +103,7 @@ class TSL_SantecCommands(visadevice.VisaDevice, TSLEnums):
     sweep_wavelength_speed = visa_property("SN", dtype=float)
     # sweep_mode = visa_property("SM", dtype=TSLEnums.SweepModes)
     sweep_single = visa_command("SG1")
+
+
+# expose the SCPI commands interface as a "default"
+TSL = TSL_SCPICommands
