@@ -6,16 +6,16 @@ from enum import Enum
 _connected_devices = {}
 
 
-def get_device(id):
+def get_device(id, **extra_settings):
     if id in _connected_devices:
         return _connected_devices[id]
     else:
-        dev = _connect_device(id)
+        dev = _connect_device(id, **extra_settings)
         _connected_devices[id] = dev
         return dev
 
 
-def _connect_device(id):
+def _connect_device(id, **extra_settings):
     from . import drivers
     hw_conf = pylabframe.config.get('devices')
     device_settings = copy.deepcopy(hw_conf[id])
@@ -32,6 +32,8 @@ def _connect_device(id):
         exec(f"from .drivers import {driver_file}")
 
     device_class = eval(f"drivers.{device_class}")
+
+    device_settings.update(extra_settings)
 
     dev = device_class(id, **device_settings)
 
