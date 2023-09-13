@@ -201,17 +201,21 @@ def visa_query(visa_cmd, kwarg_defaults=None, binary=False, **query_kw):
     return visa_executer
 
 
-def visa_read_value_transform(val, value_multiplier=None, **kw):
+def visa_read_value_transform(val, value_multiplier=None, round_on_read_digits=None, **kw):
     if value_multiplier is not None:
         # upon read, multiply
         val = val * value_multiplier
+    if round_on_read_digits is not None:
+        val = round(val, round_on_read_digits)
     return val
 
 
-def visa_write_value_transform(val, value_multiplier=None, **kw):
+def visa_write_value_transform(val, value_multiplier=None, round_on_write_digits=None, **kw):
     if value_multiplier is not None:
         # upon write, divide
         val = val / value_multiplier
+    if round_on_write_digits is not None:
+        val = round(val, round_on_write_digits)
     return val
 
 
@@ -271,7 +275,7 @@ class VisaDevice(device.Device):
             if not hasattr(type(self), cmd):
                 raise ValueError(f"Visa command '{cmd}' cannot be found.")
             cmd = getattr(type(self), cmd)
-        if not issubclass(cmd, property) and not callable(cmd):
+        if not isinstance(cmd, property) and not callable(cmd):
             raise ValueError(f"Invalid command object '{cmd}'. Hint: don't supply <device>.<command> (e.g. my_laser.wavelength), which references the value of the property, not the command object itself. Supply either 'type(<device>).<command>' (e.g. type(my_laser).wavelength) or the name of the command (e.g. 'wavelength')")
 
         return cmd
