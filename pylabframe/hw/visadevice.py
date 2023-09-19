@@ -111,6 +111,8 @@ def visa_property(visa_cmd: str, dtype=None, read_only=False, read_conv=str, wri
             # apply configurable transformations
             this_prop = property_info['property_object']
             if this_prop in self.command_options:
+                if self.command_options[this_prop].get("disable_write", False):
+                    raise ValueError("Writing to this device property has been disabled in your config.")
                 value = visa_write_value_transform(value, **self.command_options[this_prop])
 
             value = write_conv(value)
