@@ -332,6 +332,24 @@ class NumericalData:
             metadata=copy.deepcopy(self.metadata)
         )
 
+    def apply_along_axis(self, func, axis, *args, **kwargs):
+        new_data_array = np.apply_along_axis(func, axis, self.data_array, *args, **kwargs)
+
+        new_axes = copy.deepcopy(self.axes)
+        new_axes_names = copy.deepcopy(self.axes_names)
+        if len(new_axes) > axis:
+            new_axes.pop(axis)
+        if len(new_axes_names) > axis:
+            new_axes_names.pop(axis)
+
+        return type(self)(
+            data_array=new_data_array,
+            axes=new_axes,
+            axes_names=new_axes_names,
+            reduced_axes=copy.deepcopy(self.reduced_axes),
+            metadata=copy.deepcopy(self.metadata)
+        )
+
     # saving functions
     # ================
     def save_npz(self, file, stringify_enums=True, save_timestamp=True, save_location_option=None, **expand_kw):
