@@ -204,6 +204,25 @@ class NumericalData:
     def z_axis(self, ax_values):
         self.set_axis(2, ax_values)
 
+    def get_axis_range(self, ax_index):
+        return (np.min(self.axes[ax_index]), np.max(self.axes[ax_index]))
+
+    @property
+    def x_range(self):
+        return self.get_axis_range(0)
+
+    @property
+    def y_range(self):
+        return self.get_axis_range(1)
+
+    @property
+    def z_range(self):
+        return self.get_axis_range(2)
+
+    @property
+    def data_range(self):
+        return (np.min(self.data_array), np.max(self.data_array))
+
     # patch all calls that don't work on the NumericalData object directly through to the underlying data_array
     def __getattr__(self, item):
         if hasattr(self.data_array, item):
@@ -523,13 +542,23 @@ class NumericalData:
         if p0 is None:
             p0 = [p0_dict[pn] for pn in free_params]
 
+        ydata = data_transform_func(self.data_array)
+        complex_fit = np.iscomplexobj(ydata)
+        if complex_fit:
+            ydata = np.concatenate((np.real(ydata), np.imag(ydata)))
+
         def fit_func_wrapper(xdata, *params):
             all_params = dict(zip(free_params, params))
             all_params.update(pfix_dict)
-            return data_transform_func(fit_func(xdata, **all_params))
+            ydata_estimate = data_transform_func(fit_func(xdata, **all_params))
+
+            if complex_fit:
+                ydata_estimate = np.concatenate((np.real(ydata_estimate), np.imag(ydata_estimate)))
+
+            return ydata_estimate
 
         popt, pcov, infodict, mesg, ier = scipy.optimize.curve_fit(
-            fit_func_wrapper, self.x_axis, data_transform_func(self.data_array), p0=p0, full_output=True, **kw
+            fit_func_wrapper, self.x_axis, ydata, p0=p0, full_output=True, **kw
         )
 
         popt_dict = dict(zip(free_params, popt))
@@ -538,7 +567,7 @@ class NumericalData:
         fit_x_range = (self.x_axis.min(), self.x_axis.max())
         this_fit = FitResult(fit_def, popt_dict=popt_dict, perr_dict=perr_dict, pcov=pcov,
                          fit_info=infodict, fit_x_range=fit_x_range, pfix_dict=pfix_dict,
-                         data_transform_func=data_transform_func_save)
+                         data_transform_func=data_transform_func_save, complex_fit=complex_fit)
         self.last_fit = this_fit
         return this_fit
 
@@ -561,7 +590,7 @@ class NumericalData:
 
 class FitResult:
     def __init__(self, fit_def, popt_dict, perr_dict, pcov, fit_info, fit_x_range=None, guess=False, pfix_dict=None,
-                 data_transform_func=None):
+                 data_transform_func=None, complex_fit=None):
         if pfix_dict is None:
             pfix_dict = {}
 
@@ -574,6 +603,11 @@ class FitResult:
         self.fit_x_range = fit_x_range
         self.guess = guess
         self.data_transform_func = data_transform_func
+        self.complex_fit = complex_fit
+
+    @classmethod
+    def from_guess(cls, fit_def, p0_dict, fit_x_range=None, pfix_dict=None):
+        return cls(fit_def, p0_dict, None, None, None, fit_x_range=fit_x_range, guess=True, pfix_dict=pfix_dict)
 
     def plot(self, x_start=None, x_stop=None, x_num=1001, x=None, plot_axis=None, **plot_kw):
         if x is None:
@@ -643,6 +677,30 @@ f"""Fit result summary for {self.fit_def.get_name()}
             return self.pfix_dict[item]
         else:
             raise KeyError(item)
+
+    # saving functions
+    # ================
+    def save_npz(self, file, save_timestamp=True, save_location_option=None, **expand_kw):
+        file = path.expand_default_save_location(file, save_location_option=save_location_option, **expand_kw)
+
+        data_to_save = {
+            "fit_def": self.fit_def.__name__,
+            "popt_dict": self.popt_dict,
+            "perr_dict": self.perr_dict,
+            "pfix_dict": self.pfix_dict,
+            "pcov": self.pcov,
+            "fit_info": self.fit_info,
+            "fit_x_range": self.fit_x_range,
+            "guess": self.guess,
+            "data_transform_func": repr(self.data_transform_func),
+            "complex_fit": self.complex_fit
+        }
+
+        if save_timestamp:
+            data_to_save["save_date"] = path.current_datestamp()
+            data_to_save["save_time"] = path.current_timestamp()
+
+        np.savez(file, **data_to_save)
 
 
 class FitterDefinition:

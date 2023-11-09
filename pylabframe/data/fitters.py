@@ -246,3 +246,28 @@ class Line(FitterDefinition):
             "a": a,
             "b": b,
         }
+
+
+class Exponential(FitterDefinition):
+    param_names = ["rate", "amplitude", "offset"]
+
+    @classmethod
+    def fit_func(cls, x, rate=1., amplitude=1., offset=0.):
+        return amplitude * np.exp(rate * x) + offset
+
+    @classmethod
+    def guess_func(cls, data: NumericalData, x=None, y=None, pfix_dict=None):
+        if pfix_dict is None:
+            pfix_dict = {}
+
+        if data is not None:
+            x = data.x_axis
+            y = data.data_array
+
+        a, b = np.polyfit(x, np.log(np.abs(y)), deg=1)
+
+        return {
+            "rate": a,
+            "amplitude": np.exp(b),
+            "offset": 0.,
+        }

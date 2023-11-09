@@ -125,7 +125,7 @@ class TimestampedDir:
         return cur_path
 
 
-def find_path(*args, parent_dir=None, in_today=False, return_multiple=False):
+def find_path(*args, parent_dir=None, in_today=False, return_multiple=False, return_full_path=True):
     if parent_dir is None:
         if in_today:
             parent_dir = today_dir()
@@ -148,7 +148,13 @@ def find_path(*args, parent_dir=None, in_today=False, return_multiple=False):
         else:
             cur_parent = matches[0]
 
-    return cur_parent
+    if return_full_path:
+        return cur_parent
+    else:
+        if return_multiple:
+            return [os.path.split(p)[1] for p in cur_parent]
+        else:
+            return os.path.split(p)[1]
 
 
 def expand_default_save_location(file, add_timestamp=None, timestamp=None, ts_suffix=None, create_dirs=True, verbose=True, exist_ok=False, save_location_option=None):
@@ -173,7 +179,7 @@ def expand_default_save_location(file, add_timestamp=None, timestamp=None, ts_su
         return save_path(file, add_timestamp=add_timestamp, timestamp=timestamp, ts_suffix=ts_suffix,
                          parent_dir=root_dir(), create_dirs=create_dirs, verbose=verbose, exist_ok=exist_ok)
     else:
-        raise ValueError(f"Invalid option for save location: {save_location_option}")
+        raise ValueError(f"Invalid option for save location: {save_location_option}. Options are: 'cwd', 'cwd_with_timestamp', 'today_dir', 'root_dir'")
 
 
 def require_today_dir():
