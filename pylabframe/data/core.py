@@ -479,7 +479,7 @@ class NumericalData:
 
     def plot_2d(self, plot_axis=None, x_label=None, y_label=None, z_label=None, auto_label=True, apply_data_func=lambda x: x,
                 x_scaling=1., x_offset=0., y_scaling=1., y_offset=0., z_scaling=1., z_offset=0.,
-                add_colorbar=True, cax=None, fix_mesh=True, rasterized=True, cbar_kw={},
+                transpose=False, add_colorbar=True, cax=None, fix_mesh=True, rasterized=True, cbar_kw={},
                 **kw):
 
         if plot_axis is None:
@@ -490,6 +490,12 @@ class NumericalData:
         plot_y = y_scaling * (self.y_axis - y_offset)
         plot_z = z_scaling * (apply_data_func(self.data_array) - z_offset)
         plot_z = plot_z.T
+
+        if transpose:
+            plot_x, plot_y = plot_y, plot_x
+            plot_z = plot_z.T
+
+            x_label, y_label = y_label, x_label
 
         im = plot_2d_data(plot_x, plot_y, plot_z, plot_axis, fix_mesh=fix_mesh, rasterized=rasterized, **kw)
 

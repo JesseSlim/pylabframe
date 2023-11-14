@@ -1,5 +1,6 @@
 import numpy as np
 import scipy
+import scipy.special
 from .core import NumericalData, FitterDefinition, FitResult
 from . import helpers
 
@@ -271,3 +272,41 @@ class Exponential(FitterDefinition):
             "amplitude": np.exp(b),
             "offset": 0.,
         }
+
+
+class BesselJ(FitterDefinition):
+    param_names = ["amplitude", "x_pi", "order", "offset_y", "offset_x"]
+
+    @classmethod
+    def guess_func(cls, data: NumericalData, x=None, y=None, order=None, pfix_dict=None, offset_y=0., initial_slope_idx=1):
+        if order is None:
+            order = pfix_dict['order']
+
+        if data is not None:
+            x = data.x_axis
+            y = data.data_array
+
+        if offset_y is True:
+            offset_y = y[0]
+
+        if "offset_x" in pfix_dict:
+            offset_x = pfix_dict['offset_x']
+        else:
+            offset_x = 0.
+
+        initial_slope = (y[initial_slope_idx] - y[0]) / (x[initial_slope_idx] - x[0])
+        # very crude guess for amplitude: just take the maximum
+        amplitude = np.max(y) / 0.6  # approximate max of bessel function
+        x_pi = np.pi * amplitude / initial_slope
+
+        return {
+            "amplitude": amplitude,
+            "x_pi": x_pi,
+            "order": order,
+            "offset_y": offset_y,
+            "offset_x": offset_x
+        }
+
+    @classmethod
+    def fit_func(cls, x, amplitude, x_pi, order=1, offset_y=0.0, offset_x=0.0):
+        return offset_y + amplitude*scipy.special.jv(order, np.pi*(x-offset_x)/x_pi)
