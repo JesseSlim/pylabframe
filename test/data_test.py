@@ -23,6 +23,8 @@ tt3 = test.iloc[:,2]
 tb1 = tt1.vloc[5.:6.]
 tb2 = tt1.vloc[5.:]
 
+tf1 = test.vloc[0.4,:]
+
 tt1.plot()
 tt2.plot()
 tt3.plot()

@@ -55,7 +55,7 @@ class NumericalData:
                 else:
                     new_ax_or_val = None
 
-                if isinstance(slice_list[i], int):
+                if np.isscalar(slice_list[i]):
                     if i < len(self.parent.axes_names):
                         cur_ax_name = self.parent.axes_names[i]
                     else:
