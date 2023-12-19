@@ -11,9 +11,9 @@ class ThorlabsPM100D(visadevice.VisaDevice):
     """Driver to communicate with a PM100D/PM200D power meter"""
 
     average_count = visa_property("sense:average:count", dtype=int)
-    wavelength = visa_property("sense:correction:wavelength", dtype=int)
+    wavelength = visa_property("sense:correction:wavelength", dtype=float)
     auto_range = visa_property("sense:power:range:auto", dtype=bool)
-    power = visa_property("read", read_only=True)
+    power = visa_property("read", read_only=True, dtype=float)
 
     adjust_zero = visa_command("sense:correction:collect:zero:initiate")
 

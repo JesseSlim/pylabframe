@@ -308,4 +308,7 @@ class VisaDevice(device.Device):
     ## standard SCPI commands
     clear_status = visa_command("*CLS")
     status_register = visa_property("*ESR", dtype=EventStatusRegister, read_only=True)
-    status_byte = visa_property("*STB", dtype=int, read_only=True)
+    # status_byte = visa_property("*STB", dtype=int, read_only=True)
+    @property
+    def status_byte(self):
+        return self.instr.read_stb()  # seems to be the more specific way of reading status byte?

@@ -104,6 +104,11 @@ class TSL_SantecCommands(visadevice.VisaDevice, TSLEnums):
     # sweep_mode = visa_property("SM", dtype=TSLEnums.SweepModes)
     sweep_single = visa_command("SG1")
 
+    # disable default scpi commands
+    status_register = None
+    status_byte = None
+    clear_status = None
+
 
 # expose the SCPI commands interface as a "default"
 TSL = TSL_SCPICommands
