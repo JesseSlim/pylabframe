@@ -56,21 +56,32 @@ class TektronixScope(visadevice.VisaDevice):
     waveform_x_zero = visa_property("wfmoutpre:xzero", read_only=True, read_conv=float)
     waveform_x_unit = visa_property("wfmoutpre:xunit", read_only=True, read_conv=str_conv)
 
-    def initialize_waveform_transfer(self, channel_id, start=1, stop=None):
-        self.instr.write(f"data:source ch{channel_id}")
+    def initialize_waveform_transfer(self, channel_id, start=1, stop=None, math_channel=False):
+        if not math_channel:
+            self.instr.write(f"data:source ch{channel_id}")
+        else:
+            self.instr.write(f"data:source math{channel_id}")
         self.instr.write(f"data:start {start}")
         if stop is None:
             # default to full waveform
             stop = self.trace_points
         self.instr.write(f"data:stop {stop}")
-        self.instr.write("data:encdg fast")
-        self.instr.write("data:width 2")
+        if not math_channel:
+            self.instr.write("data:encdg fast")
+            self.instr.write("data:width 2")
+        else:
+            self.instr.write("data:encdg fpbinary")
+            self.instr.write("data:width 4")
         self.instr.write("header 0")
 
-    def do_waveform_transfer(self):
-        wfm_raw = self.instr.query_binary_values("curve?", datatype='h', is_big_endian=True, container=np.array)
+    def do_waveform_transfer(self, math_channel=False):
+        if not math_channel:
+            wfm_raw = self.instr.query_binary_values("curve?", datatype='h', is_big_endian=True, container=np.array)
+        else:
+            wfm_raw = self.instr.query_binary_values("curve?", datatype="f", is_big_endian=True, container=np.array)
+
         wfm_converted = ((wfm_raw - self.waveform_y_offset_levels) * self.waveform_y_multiplier) + self.waveform_y_zero
-        time_axis = (np.arange(self.waveform_points) * self.waveform_x_increment) + self.waveform_x_zero
+        x_axis = (np.arange(self.waveform_points) * self.waveform_x_increment) + self.waveform_x_zero
 
         metadata = {
             "x_unit": self.waveform_x_unit,
@@ -78,12 +89,12 @@ class TektronixScope(visadevice.VisaDevice):
             "y_unit": self.waveform_y_unit,
             "y_label": f"signal",
         }
-        data_obj = pylabframe.data.NumericalData(wfm_converted, x_axis=time_axis, metadata=metadata)
+        data_obj = pylabframe.data.NumericalData(wfm_converted, x_axis=x_axis, metadata=metadata)
         return data_obj
 
-    def acquire_channel_waveform(self, channel_id, start=1, stop=None):
-        self.initialize_waveform_transfer(channel_id, start=start, stop=stop)
-        wfm = self.do_waveform_transfer()
+    def acquire_channel_waveform(self, channel_id, start=1, stop=None, math_channel=False):
+        self.initialize_waveform_transfer(channel_id, start=start, stop=stop, math_channel=math_channel)
+        wfm = self.do_waveform_transfer(math_channel=math_channel)
         return wfm
 
     # channel properties
