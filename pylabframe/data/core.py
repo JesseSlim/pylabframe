@@ -521,7 +521,10 @@ class NumericalData:
 
     # fitting functions
     # =================
-    def fit(self, fit_def: "FitterDefinition", p0=None, p0_dict=None, pfix_dict=None, data_transform_func=None, **kw):
+    def fit(self, fit_def: "FitterDefinition", p0=None, p0_dict=None, pfix_dict=None, data_transform_func=None, guess_kw=None, **kw):
+        if guess_kw is None:
+            guess_kw = {}
+
         # if issubclass(fit_def, fitters.FitterDefinition):
         fit_func = fit_def.fit_func
         if pfix_dict is None:
@@ -541,7 +544,7 @@ class NumericalData:
 
         if p0 is None and p0_dict is None:
             if fit_def.guess_func:
-                p0_dict = fit_def.guess_func(self, pfix_dict=pfix_dict)
+                p0_dict = fit_def.guess_func(self, pfix_dict=pfix_dict, **guess_kw)
             else:
                 p0 = [1.] * len(free_params)
 
@@ -553,6 +556,8 @@ class NumericalData:
         if complex_fit:
             ydata = np.concatenate((np.real(ydata), np.imag(ydata)))
 
+        ydata = ydata.reshape(-1)
+
         def fit_func_wrapper(xdata, *params):
             all_params = dict(zip(free_params, params))
             all_params.update(pfix_dict)
@@ -561,10 +566,17 @@ class NumericalData:
             if complex_fit:
                 ydata_estimate = np.concatenate((np.real(ydata_estimate), np.imag(ydata_estimate)))
 
-            return ydata_estimate
+            return ydata_estimate.reshape(-1)
+
+        if self.data_array.ndim == 1:
+            xdata = self.x_axis
+        else:
+            assert len(self.axes) == self.data_array.ndim
+            grid = np.meshgrid(*self.axes[::-1])
+            xdata = np.stack(grid, axis=-1).reshape(-1, len(self.axes))[:,::-1]
 
         popt, pcov, infodict, mesg, ier = scipy.optimize.curve_fit(
-            fit_func_wrapper, self.x_axis, ydata, p0=p0, full_output=True, **kw
+            fit_func_wrapper, xdata, ydata, p0=p0, full_output=True, **kw
         )
 
         popt_dict = dict(zip(free_params, popt))
