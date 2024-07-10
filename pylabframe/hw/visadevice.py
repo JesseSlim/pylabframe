@@ -222,8 +222,8 @@ def visa_write_value_transform(val, value_multiplier=None, round_on_write_digits
 
 
 class VisaDevice(device.Device):
-    def __init__(self, id, address, error_on_double_connect=True, command_options=None, **kw):
-        super().__init__(id, error_on_double_connect=error_on_double_connect)
+    def __init__(self, id, address, error_on_double_connect=True, settings=None, command_options=None, **kw):
+        super().__init__(id, error_on_double_connect=error_on_double_connect, settings=settings)
         self.address = address
         self.instr: pyvisa.resources.messagebased.MessageBasedResource = _visa_rm.open_resource(address, **kw)
 
