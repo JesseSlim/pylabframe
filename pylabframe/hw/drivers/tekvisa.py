@@ -13,7 +13,7 @@ class TektronixScope(visadevice.VisaDevice):
     NUM_CHANNELS = 2
 
     DEFAULT_SETTINGS = {
-        "trace_data_encoding": "fast",
+        "trace_data_encoding": "ribinary",
         "trace_data_width": 2,
         "math_data_encoding": "fpbinary",
         "math_data_width": 4,
