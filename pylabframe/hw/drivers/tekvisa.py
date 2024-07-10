@@ -12,6 +12,13 @@ import pylabframe.data
 class TektronixScope(visadevice.VisaDevice):
     NUM_CHANNELS = 2
 
+    DEFAULT_SETTINGS = {
+        "trace_data_encoding": "fast",
+        "trace_data_width": 2,
+        "math_data_encoding": "fpbinary",
+        "math_data_width": 4,
+    }
+
     class RunModes(SettingEnum):
         CONTINUOUS = "RUNST"
         SINGLE = "SEQ"
@@ -56,7 +63,7 @@ class TektronixScope(visadevice.VisaDevice):
     waveform_x_zero = visa_property("wfmoutpre:xzero", read_only=True, read_conv=float)
     waveform_x_unit = visa_property("wfmoutpre:xunit", read_only=True, read_conv=str_conv)
 
-    def initialize_waveform_transfer(self, channel_id, start=1, stop=None, math_channel=False):
+    def initialize_waveform_transfer(self, channel_id, start=1, stop=None, math_channel=False, encoding=None, data_width=None):
         if not math_channel:
             self.instr.write(f"data:source ch{channel_id}")
         else:
@@ -66,12 +73,15 @@ class TektronixScope(visadevice.VisaDevice):
             # default to full waveform
             stop = self.trace_points
         self.instr.write(f"data:stop {stop}")
-        if not math_channel:
-            self.instr.write("data:encdg fast")
-            self.instr.write("data:width 2")
-        else:
-            self.instr.write("data:encdg fpbinary")
-            self.instr.write("data:width 4")
+
+        if encoding is None:
+            encoding = self.settings['trace_data_encoding'] if not math_channel else self.settings['math_data_encoding']
+        if data_width is None:
+            data_width = self.settings['trace_data_width'] if not math_channel else self.settings['math_data_width']
+
+        self.instr.write(f"data:encdg {encoding}")
+        self.instr.write(f"data:width {data_width}")
+
         self.instr.write("header 0")
 
     def do_waveform_transfer(self, math_channel=False):

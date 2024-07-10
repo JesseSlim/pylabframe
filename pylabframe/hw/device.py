@@ -41,7 +41,9 @@ def _connect_device(id, **extra_settings):
 
 
 class Device:
-    def __init__(self, id, error_on_double_connect=True):
+    DEFAULT_SETTINGS = {}
+
+    def __init__(self, id, error_on_double_connect=True, settings=None):
         if id in _connected_devices and error_on_double_connect:
             raise RuntimeError(f"Device {id} already connected")
 
@@ -60,6 +62,12 @@ class Device:
         self.metadata_registry = {}
         for mf in metadata_fields:
             self.metadata_registry[mf] = lambda self=self, mf=mf: getattr(self, mf)
+
+        if settings is None:
+            settings = {}
+
+        self.settings = copy.deepcopy(self.DEFAULT_SETTINGS)
+        self.settings.update(settings)
 
     @classmethod
     def list_available(cls):
