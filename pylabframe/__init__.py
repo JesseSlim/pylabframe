@@ -1,4 +1,4 @@
-"""pyLabFrame is a Python package to interact with laboratory devices and measurement data."""
+"""pyLabFrame is a Python package to help you interact with laboratory instruments and measurement data."""
 
 from . import general
 from . import config
