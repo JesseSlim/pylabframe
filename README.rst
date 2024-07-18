@@ -78,8 +78,7 @@ Additional requirements to interface with lab devices:
 
 - pyvisa
 - device-specific modules
-
-    - pyrpl (RedPitaya)
+    * pyrpl (RedPitaya)
 
 Installation
 ------------
