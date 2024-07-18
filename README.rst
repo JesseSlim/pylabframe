@@ -77,7 +77,7 @@ Basic requirements to work with, analyse and visualise data:
 Additional requirements to interface with lab devices:
 
 - pyvisa
-- device-specific modules
+- device-specific modules, such as
     * pyrpl (RedPitaya)
 
 Installation
