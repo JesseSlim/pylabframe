@@ -396,6 +396,8 @@ class NumericalData:
                  metadata=metadata
                  )
 
+        return file
+
     @classmethod
     def load_npz(cls, file):
         npz_data = np.load(file, allow_pickle=True)
