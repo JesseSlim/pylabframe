@@ -23,7 +23,8 @@ For example, with the following code, we can step the wavelength of our laser wh
     lab.config.use('experiment.toml')                       # load configuration file with device addresses
 
     # connect to devices
-    laser: santecvisa.TSL = device.get_device('laser')      # type hints give us auto-complete in most IDEs
+    # type hints give us auto-complete in most IDEs
+    laser: santecvisa.TSL = device.get_device('laser')
     scope: tekvisa.TektronixScope = device.get_device('scope')
 
     wavelengths = np.linspace(1550., 1560., num=11)
@@ -42,9 +43,23 @@ For example, with the following code, we can step the wavelength of our laser wh
         tr.metadata['laser_wavelength'] = wl
         tr.save_npz(f"trace_pt{i}.npz")  # a timestamp is automatically prepended to the file name
 
+That's all the code you need! The only thing still left is to specify the connection addresses of our instruments in the file ``experiment.toml``:
+
+.. code:: toml
+
+    [devices]
+        [devices.scope]
+        driver = "tekvisa.TektronixScope"
+        address = "USB0::0x0699::0x0413::C012345::INSTR"
+
+        [devices.laser]
+        driver = "santecvisa.TSL"
+        address = "GPIB0::1::INSTR"
+
+Easy, right?
 
 pyLabFrame stands on the shoulders of giants: it is built on top of some awesome scientific packages available in the Python ecosystem.
-All of the heavy lifting is done by packages such as `numpy`, `scipy` and `pyvisa`.
+All of the heavy lifting is done by packages such as ``numpy``, ``scipy`` and ``pyvisa``.
 pyLabFrame just provides a coherent interface, as well as easy-to-use *device drivers*.
 
 .. _`lab frame`: https://en.wikipedia.org/wiki/Local_reference_frame#Laboratory_frame
@@ -53,14 +68,17 @@ Requirements
 ------------
 
 Basic requirements to work with, analyse and visualise data:
+
 - Python
 - numpy
 - scipy
 - matplotlib
 
 Additional requirements to interface with lab devices:
+
 - pyvisa
 - device-specific modules
+
     - pyrpl (RedPitaya)
 
 Installation
@@ -68,7 +86,7 @@ Installation
 
 Installation is easy! pyLabFrame is available on PyPI, the Python package repository.
 First, make sure that the packages pyLabFrame needs are installed.
-In particular, if you want to control lab instruments, make sure that `pyvisa` and any other relevant packages for your devices are installed using your favourite package manager (e.g. `pip` or `conda`).
+In particular, if you want to control lab instruments, make sure that ``pyvisa`` and any other relevant packages for your devices are installed using your favourite package manager (e.g. ``pip`` or ``conda``).
 
 Install pyLabFrame using pip:
 

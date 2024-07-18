@@ -2,12 +2,13 @@ import numpy as np
 import time
 
 import pylabframe as lab
-from pylabframe.hw import device                            # load hardware modules
-from pylabframe.hw.drivers import santecvisa, tekvisa       # for type hinting
+from pylabframe.hw import device                        # load hardware modules
+from pylabframe.hw.drivers import santecvisa, tekvisa   # for type hinting
 
-lab.config.use('experiment.toml')                           # load configuration file with device addresses
+lab.config.use('experiment.toml')                       # load configuration file with device addresses
 
 # connect to devices
+# type hints give us auto-complete in most IDEs
 laser: santecvisa.TSL = device.get_device('laser')
 scope: tekvisa.TektronixScope = device.get_device('scope')
 
