@@ -33,7 +33,7 @@ Design philosophy
 pyLabFrame is designed to be clean, consistent and helpful. It follows a few design principles:
 
 * **Modular**. pyLabFrame offers a lot of options, but you don't have to use all of them. Already have some code to plot your data? Great! No need to throw that out.
-* **Lightweight**. pyLabFrame is a thin wrapper on top of widely-used packages such as ``numpy`` and ``pyvisa``. You can easily access the underlying objects if you want to
+* **Lightweight**. pyLabFrame is a thin wrapper on top of widely-used packages such as ``numpy`` and ``pyvisa``. You can easily access the underlying objects if you want to.
 * **Unobtrusive**. pyLabFrame will only do what you tell it to do. No secret shenanigans behind the scenes.
 * **Extensible**. Everyone's needs are different. pyLabFrame tries to be clean, uncomplicated and thus easily extensible -- even if you're not a coder at heart. In terms of advanced programming concepts, pyLabFrame strives to use *just the right amount of magic*. Enough to enable elegant code, but not too much for a nonprofessional coder to understand.
 
@@ -123,9 +123,21 @@ How does pyLabFrame know to connect to our instruments? The only thing still lef
 
 In this example, our instruments are VISA devices that we connect to using `PyVISA`_. If you're using `NI-VISA`_, you can find these addresses in the `NI MAX`_ software.
 
+We have also added `type hints`_ to our device objects
+
+.. code:: python
+
+    laser: santecvisa.TSL = device.get_device('laser')
+    esa: keysightvisa.KeysightESA = device.get_device('esa')
+
+so most IDEs will do auto-complete to remind us of the available control commands.
+
+.. image:: https://github.com/JesseSlim/pylabframe/blob/main/docs/source/_static/autocomplete-animation.gif?raw=true
+
 .. _`PyVISA`: https://github.com/pyvisa/pyvisa
 .. _`NI-VISA`: https://pyvisa.readthedocs.io/en/latest/faq/getting_nivisa.html
 .. _`NI MAX`: https://www.ni.com/en/support/documentation/supplemental/21/what-is-ni-measurement---automation-explorer--ni-max--.html
+.. _`type hints`: https://docs.python.org/3/library/typing.html
 
 Requirements
 ------------
