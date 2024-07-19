@@ -108,7 +108,7 @@ Now we're ready to rumble!
 
 That's all the code you need.
 
-How does pyLabFrame know to connect to our instruments? The only thing still left is to specify the connection info of our instruments in the file ``experiment.toml``:
+How does pyLabFrame know to connect to our instruments? We specify the connection info of our instruments in the file ``experiment.toml``:
 
 .. code:: toml
 
