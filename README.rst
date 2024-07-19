@@ -106,7 +106,7 @@ Now we're ready to rumble!
         plt.savefig(saved_file[:-3] + ".png")
         plt.close()
 
-That's all the code you need!
+That's all the code you need.
 
 How does pyLabFrame know to connect to our instruments? The only thing still left is to specify the connection info of our instruments in the file ``experiment.toml``:
 
