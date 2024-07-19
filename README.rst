@@ -1,15 +1,46 @@
 pyLabFrame
 ==========
 
+..
+    .. image:: https://github.com/JesseSlim/pylabframe/blob/main/docs/source/_static/pylabframe-v1.png?raw=true
+           :width: 25%
+
+
 pyLabFrame is a Python package to help you interact with laboratory instruments and measurement data.
 
 Description
 -----------
 
-The goal of pyLabFrame is to provide a coherent framework to help (physics) researchers do their work in the lab.
+pyLabFrame provides a coherent framework to help (physics) researchers do their work in the lab.
 In essence, it allows you to control your `lab frame`_ in just a few lines of Python!
 
-Let's go through an example. We are going to 1) step the wavelength of our laser, and for every point 2) save a trace from our spectrum analyser, 3) fit the data with a Lorentzian, and 4) save a plot of the data and fit.
+pyLabFrame stands on the shoulders of giants: it is built on top of some of the awesome scientific packages available in the Python ecosystem.
+All of the heavy lifting is done by packages such as ``numpy``, ``scipy`` and ``pyvisa``.
+pyLabFrame just provides a coherent interface, as well as easy-to-use *device drivers*.
+
+pyLabFrame includes components to help you with the following tasks:
+
+* Instrument control
+* Data acquisition
+* Data storage and retrieval
+* Fitting
+* Visualisation
+
+.. _`lab frame`: https://en.wikipedia.org/wiki/Local_reference_frame#Laboratory_frame
+
+Design philosophy
+^^^^^^^^^^^^^^^^^
+pyLabFrame is designed to be clean, consistent and helpful. It follows a few design principles:
+
+* **Modular**. pyLabFrame offers a lot of options, but you don't have to use all of them. Already have some code to plot your data? Great! No need to throw that out.
+* **Lightweight**. pyLabFrame is a thin wrapper on top of widely-used packages such as ``numpy`` and ``pyvisa``. You can easily access the underlying objects if you want to
+* **Unobtrusive**. pyLabFrame will only do what you tell it to do. No secret shenanigans behind the scenes.
+* **Extensible**. Everyone's needs are different. pyLabFrame tries to be clean, uncomplicated and thus easily extensible -- even if you're not a coder at heart. In terms of advanced programming concepts, pyLabFrame strives to use *just the right amount of magic*. Enough to enable elegant code, but not too much for a nonprofessional coder to understand.
+
+Example
+-------
+
+To showcase pyLabFrame's potential, let's go through an example. Imagine an experiment where we want to 1) step the wavelength of our laser, and for every point 2) save a trace from our spectrum analyser, 3) fit the data with a Lorentzian, and 4) save a plot of the data and fit. We can do all of that with just a few lines of code.
 
 First, we'll import and set up pyLabFrame.
 
@@ -26,7 +57,7 @@ First, we'll import and set up pyLabFrame.
 
     lab.config.use('experiment.toml')                           # load configuration file with hw addresses
 
-Next, we'll connect to our instruments and set them up for our experiment
+Next, we'll connect to our instruments and set them up for the experiment.
 
 .. code:: python
 
@@ -75,9 +106,9 @@ Now we're ready to rumble!
         plt.savefig(saved_file[:-3] + ".png")
         plt.close()
 
-That's all the code you need! Pretty neat, right?
+That's all the code you need!
 
-But how does pyLabFrame know how to connect to our instruments? The only thing still left is to specify the connection addresses of our instruments in the file ``experiment.toml``:
+How does pyLabFrame know to connect to our instruments? The only thing still left is to specify the connection info of our instruments in the file ``experiment.toml``:
 
 .. code:: toml
 
@@ -90,37 +121,37 @@ But how does pyLabFrame know how to connect to our instruments? The only thing s
         driver = "santecvisa.TSL"
         address = "GPIB0::1::INSTR"
 
-Easy, right?
+In this example, our instruments are VISA devices that we connect to using `PyVISA`_. If you're using `NI-VISA`_, you can find these addresses in the `NI MAX`_ software.
 
-pyLabFrame stands on the shoulders of giants: it is built on top of some awesome scientific packages available in the Python ecosystem.
-All of the heavy lifting is done by packages such as ``numpy``, ``scipy`` and ``pyvisa``.
-pyLabFrame just provides a coherent interface, as well as easy-to-use *device drivers*.
-
-.. _`lab frame`: https://en.wikipedia.org/wiki/Local_reference_frame#Laboratory_frame
+.. _`PyVISA`: https://github.com/pyvisa/pyvisa
+.. _`NI-VISA`: https://pyvisa.readthedocs.io/en/latest/faq/getting_nivisa.html
+.. _`NI MAX`: https://www.ni.com/en/support/documentation/supplemental/21/what-is-ni-measurement---automation-explorer--ni-max--.html
 
 Requirements
 ------------
 
 Basic requirements to work with, analyse and visualise data:
 
-- Python
-- numpy
-- scipy
-- matplotlib
+* ``Python``
+* ``numpy``
+* ``scipy``
+* ``matplotlib``
 
 Additional requirements to interface with lab devices:
 
-- pyvisa
-- device-specific modules, such as
-    * pyrpl (RedPitaya)
+* ``pyvisa``
+* device-specific modules, such as
+
+  * ``pyrpl`` (RedPitaya)
 
 Installation
 ------------
 
 Installation is easy! pyLabFrame is available on PyPI, the Python package repository.
+
 First, make sure that the packages pyLabFrame needs are installed.
 In particular, if you want to control lab instruments, make sure that ``pyvisa`` and any other relevant packages for your devices are installed using your favourite package manager (e.g. ``pip`` or ``conda``).
 
-Install pyLabFrame using pip:
+Then, install pyLabFrame using pip:
 
     $ pip install pylabframe
