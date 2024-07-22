@@ -17,7 +17,9 @@ version = '0.0.7'
 
 extensions = [
     "sphinx.ext.autodoc",
-    "sphinx.ext.autosummary"
+    "sphinx.ext.autosummary",
+    "sphinx.ext.autosectionlabel",
+    "sphinx.ext.intersphinx"
 ]
 
 templates_path = ['_templates']
@@ -38,3 +40,14 @@ import sys
 pkg_path = pathlib.Path(__file__).parents[2].resolve().as_posix()
 sys.path.insert(0, pkg_path)
 print(f"Package path: {pkg_path}")
+
+autodoc_mock_imports = ["pyvisa", "pyrpl"]
+
+autodoc_default_options = {
+    'members': True,
+    'member-order': 'bysource',
+    'special-members': '__init__',
+    'undoc-members': True,
+}
+
+intersphinx_mapping = {'python': ('https://docs.python.org/3', None)}

@@ -6,13 +6,22 @@
 Welcome to pyLabFrame's documentation!
 ======================================
 
-**pyLabFrame** is a Python package to interact with laboratory devices and measurement data.
+**pyLabFrame** is a Python package to help you interact with laboratory instruments and measurement data.
+
+Here you'll find the documentation and API reference to work with pyLabFrame. The :ref:`overview` is a good place to get started.
 
 .. toctree::
    :maxdepth: 2
    :caption: Contents:
 
-   api
+   overview
+   recommended_workflow
+   components/control
+   components/data_handling
+   components/data_storage
+   components/fitting
+   components/visualisation
+   api/index
 
 
 
