@@ -77,7 +77,7 @@ class TSL_SCPICommands(visadevice.VisaDevice, TSLEnums):
 
 
 def santec_property(visa_cmd, dtype=None, read_only=False, **kw):
-    kw.setdefault("get_suffix", "")
+    kw.setdefault("read_suffix", "")
     kw.setdefault("read_on_write", True)
     kw.setdefault("set_cmd_delimiter", "")
     return visa_property(visa_cmd, dtype=dtype, read_only=read_only, **kw)

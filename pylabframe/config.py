@@ -1,31 +1,35 @@
-r"""Current config file format:
+r"""Current config file format, in TOML syntax:
 
---- toml file contents ---
+.. code:: toml
 
-computer_name = "lab-pc-1"
+    computer_name = "lab-pc-1"
 
-[data]
-root_dir = 'C:\Users\labuser\Data'  # using single quotes here to interpret as raw string (keep backslashes as-is)
-datestamp_fmt = "%Y-%m-%d"
-datestamp_suffix = " "
-timestamp_fmt = "%H%M%S"
-timestamp_suffix = " "
-day_starts_hour = 4
-require_today_dir = true
-default_save_location = "today_dir"  # options are: today_dir, root_dir, cwd, cwd_with_timestamp
-default_add_timestamp = true
+    [data]
+    root_dir = 'C:\Users\labuser\Data'  # using single quotes here to interpret as raw string (keep backslashes as-is)
+    datestamp_fmt = "%Y-%m-%d"
+    datestamp_suffix = " "
+    timestamp_fmt = "%H%M%S"
+    timestamp_suffix = " "
+    day_starts_hour = 4
+    require_today_dir = true
+    default_save_location = "today_dir"  # options are: today_dir, root_dir, cwd, cwd_with_timestamp
+    default_add_timestamp = true
 
-[devices]
-    [devices.scope1]
-    driver = "tekvisa.TektronixScope"
-    address = "USB::0x1234::125::A22-5::INSTR"
+    [drivers]
+        modules = ["mydrivers"]
 
-    [devices.esa]
-    driver = "keysightvisa.KeysightESA"
-    address = "USB::0x5678::654::A44-9::INSTR"
+    [devices]
+        [devices.scope1]
+        driver = "tekvisa.TektronixScope"
+        address = "USB::0x1234::125::A22-5::INSTR"
 
---- end toml file contents ---
+        [devices.esa]
+        driver = "keysightvisa.KeysightESA"
+        address = "USB::0x5678::654::A44-9::INSTR"
 
+        [devices.esa]
+        driver = "mydrivers.FancyLaser"
+        address = "USB::0x1234::222::23423::INSTR"
 """
 
 try:
@@ -103,14 +107,16 @@ def print(default=False):
         pprint.pprint(_default_settings)
 
 
-def get(key=None, default=None):
+def get(key=None, default=None, do_copy=True):
+    copy_func = copy.deepcopy if do_copy else lambda x: x
+
     if key == None:
-        return copy.deepcopy(_loaded_settings)
+        return copy_func(_loaded_settings)
     try:
-        return _get(key, _loaded_settings)
+        return _get(key, _loaded_settings, do_copy=do_copy)
     except (KeyError, TypeError):
         try:
-            return _get(key, _default_settings)
+            return _get(key, _default_settings, do_copy=do_copy)
         except (KeyError, TypeError) as e:
             if default is not None:
                 return default
@@ -118,14 +124,32 @@ def get(key=None, default=None):
                 raise e
 
 
-def _get(key, settings_dict):
+def _get(key, settings_dict, do_copy=True):
+    copy_func = copy.deepcopy if do_copy else lambda x: x
+
     keys = key.split(".")
 
     leaf = settings_dict
     for k in keys:
         leaf = leaf[k]
 
-    return copy.deepcopy(leaf)
+    return copy_func(leaf)
+
+
+def exists(key, in_default=False):
+    keys = key.split(".")
+
+    leaf = _loaded_settings if not in_default else _default_settings
+
+    try:
+        for k in keys:
+            if not isinstance(leaf, dict):
+                raise KeyError
+            leaf = leaf[k]
+    except (KeyError, TypeError):
+        return False
+
+    return True
 
 
 def set(key, val):
@@ -145,6 +169,13 @@ def set(key, val):
             leaf = leaf[k]
 
     parent_leaf[keys[-1]] = val
+
+
+def list_append(key, val, create_list_if_not_exist=True):
+    if create_list_if_not_exist and not exists(key):
+        set(key, [])
+
+    _get(key, _loaded_settings, do_copy=False).append(module)
 
 
 # code to run after a configuration file has been specified

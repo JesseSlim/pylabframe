@@ -1,3 +1,12 @@
+"""The ``visadevice`` module helps you  interface with VISA devices.
+
+This module builds on top of the `PyVISA`_ package.
+
+
+
+.. _`PyVISA`: https://github.com/pyvisa/pyvisa
+"""
+
 import time
 
 import pyvisa
@@ -62,8 +71,42 @@ DTYPE_CONVERTERS = {
 
 
 def visa_property(visa_cmd: str, dtype=None, read_only=False, read_conv=str, write_conv=str, rw_conv=None,
-                  access_guard=None, get_suffix="?", read_on_write=False, set_cmd_delimiter=" ",
+                  access_guard=None, read_suffix="?", read_on_write=False, set_cmd_delimiter=" ",
                   ):
+    """Defines a property that reads out or sets a device parameter. Must be used within a :class:`VisaDevice`.
+
+    For every access of the property, the command specified in ``visa_cmd`` is sent to the device. If it's a read access,
+    the device's response is returned. If it's a write access, the value to be written is appended to the command before sending.
+
+    If you're writing your own device driver for a VISA/SCPI-compatible instrument, this function will be your friend / the main workhorse.
+
+    Example usage::
+
+        from pylabframe.hw.visadevice import VisaDevice, visa_property, device
+
+        class FancyLaser(VisaDevice):
+            wavelength = visa_property(":wavelength")
+
+        device.register_driver_class("FancyLaser", FancyLaser)
+        device.register_device("my_laser", driver="FancyLaser", address="USB:123:456")
+
+        laser = device.get_device('my_laser')
+
+        print(f"Current wavelength: {laser.wavelength}")
+        laser.wavelength = 1550.0
+
+    :param visa_cmd: The command to be sent to the device to read or write the parameter. This will typically be a SCPI command listed in the instrument manual. For example: ``sense:freq:center`` to get the center frequency setting of a Keysight spectrum analyser.
+    :param dtype: Data type of the parameter value, e.g. ``bool`` or ``float``.
+    :param read_only: If True, this device parameter can only be read. Writing to it will raise an exception.
+    :param read_conv: If specified, use this function to convert the device's response into the parameter value. Useful if the device uses a nonstandard response format.
+    :param write_conv: If specified, use this function to convert the value to be written into something the instrument will understand.
+    :param rw_conv: If specified, use this function both as ``read_conv`` and as ``write_conv``.
+    :param access_guard: If specified, this function is called before the instrument is queried. Can be used to make sure that the instrument is in the right state. If it is not, the ``access_guard`` function should raise a (useful) exception.
+    :param read_suffix: This suffix is appended to the ``visa_cmd`` in case of a read access. Defaults to ``?`` as is common for SCPI commands.
+    :param read_on_write: If True, a VISA read is issued even after a write access. Some devices return a value upon setting, this allows to clear out the buffer. The response is discarded.
+    :param set_cmd_delimiter: Delimiter between ``visa_cmd`` and the value to be set. Defaults to `` `` (blank space).
+    :return:
+    """
     if rw_conv is not None:
         read_conv = rw_conv
         write_conv = rw_conv
@@ -89,7 +132,7 @@ def visa_property(visa_cmd: str, dtype=None, read_only=False, read_conv=str, wri
             # doing this gives us access to object properties (eg channel id) that can be put in the command string
             fmt_visa_cmd = fmt_visa_cmd.format(**self.query_params)
         # we end the command with a configurable suffix, usually ? for SCPI settings
-        response = self.instr.query(f"{fmt_visa_cmd}{get_suffix}")
+        response = self.instr.query(f"{fmt_visa_cmd}{read_suffix}")
         response = read_conv(response.strip())
 
         # apply configurable transformations
