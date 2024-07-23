@@ -185,17 +185,20 @@ def intbool_conv(s):
 class SettingEnum(Enum):
     """Base class for enumerations of device settings.
 
-    Can be used to map convenient names to specific strings that indicate a setting. For example::
+    Should be used to map convenient names to specific strings that indicate a setting. For example::
 
         class DetectorModes(SettingEnum):
             NORMAL = "NORM"
             AVERAGE = "AVER"
             SAMPLE = "SAMP"
 
-    The ``__str__`` function of ``SettingEnum`` is specified such that it just returns the (string) value of the enum member,
-    so that e.g. :code:`str(DetectorModes.NORMAL) == "NORMAL"` rather than :code:`str(DetectorModes.NORMAL) == "DetectorModes.NORMAL"`
-    (the default behaviour for :external:class:`enum.Enum`). This ensures that :code:`str(DetectorModes.NORMAL)` can be
-    plugged directly into a device control command.
+    By using this base class, ``pylabframe`` applies the appropriate conversions when assembling instrument commands.
     """
+
+    # The ``__str__`` function of ``SettingEnum`` is specified such that it just returns the (string) value of the enum member,
+    # so that e.g. :code:`str(DetectorModes.NORMAL) == "NORMAL"` rather than :code:`str(DetectorModes.NORMAL) == "DetectorModes.NORMAL"`
+    # (the default behaviour for :external:class:`enum.Enum`). This ensures that :code:`str(DetectorModes.NORMAL)` can be
+    # plugged directly into a device control command.
+
     def __str__(self):
         return self.value

@@ -1,3 +1,5 @@
+"""Device drivers to control RedPitaya equipment."""
+
 import numpy as np
 from enum import Enum
 import os

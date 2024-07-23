@@ -11,8 +11,9 @@ Welcome to pyLabFrame's documentation!
 Here you'll find the documentation and API reference to work with pyLabFrame. The :ref:`overview` is a good place to get started.
 
 .. toctree::
-   :maxdepth: 2
    :caption: Contents:
+   :maxdepth: 4
+   :includehidden:
 
    overview
    recommended_workflow

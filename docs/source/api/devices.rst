@@ -8,8 +8,20 @@ Reference documentation for these modules can be found below in `Generic interfa
 Device drivers
 --------------
 
+.. toctree::
+   :hidden:
+
+   drivers/tekvisa
+   drivers/keysightvisa
+   drivers/siglentvisa
+   drivers/rigolvisa
+   drivers/redpitaya
+   drivers/santecvisa
+   drivers/thorlabsvisa
+
 Drivers for specific instruments can be found under :mod:`pylabframe.hw.drivers`.
-Currently, pyLabFrame has built-in support for the following devices (coincidentally the ones that I use in the lab):
+Currently, pyLabFrame has built-in support for the following devices (coincidentally the ones that I use in the lab).
+Click on the links in the table below for driver documentation:
 
 .. currentmodule:: pylabframe.hw.drivers
 
@@ -48,7 +60,7 @@ Currently, pyLabFrame has built-in support for the following devices (coincident
     * - **Power meters**
       -
     * - Thorlabs PM100D
-      - :class:`thorlabvisa.ThorlabsPM100D`
+      - :class:`thorlabsvisa.ThorlabsPM100D`
 
 If your equipment is not on the list, do not worry -- it's easy to make your own device drivers.
 
@@ -63,8 +75,10 @@ hw.device
 ^^^^^^^^^
 
 .. automodule:: pylabframe.hw.device
+   :special-members: __init__
 
 hw.visadevice
 ^^^^^^^^^^^^^
 
 .. automodule:: pylabframe.hw.visadevice
+   :special-members: __init__

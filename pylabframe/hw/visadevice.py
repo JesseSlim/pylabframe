@@ -8,6 +8,7 @@ This module builds on top of the `PyVISA`_ package.
 """
 
 import time
+import string
 
 import pyvisa
 from . import device
@@ -98,13 +99,13 @@ def visa_property(visa_cmd: str, dtype=None, read_only=False, read_conv=str, wri
     :param visa_cmd: The command to be sent to the device to read or write the parameter. This will typically be a SCPI command listed in the instrument manual. For example: ``sense:freq:center`` to get the center frequency setting of a Keysight spectrum analyser.
     :param dtype: Data type of the parameter value, e.g. ``bool`` or ``float``.
     :param read_only: If True, this device parameter can only be read. Writing to it will raise an exception.
-    :param read_conv: If specified, use this function to convert the device's response into the parameter value. Useful if the device uses a nonstandard response format.
-    :param write_conv: If specified, use this function to convert the value to be written into something the instrument will understand.
+    :param read_conv: Function to convert the device's response into the parameter value. Useful if the device uses a nonstandard response format. Defaults to the relevant entry in :data:`DTYPE_CONVERTERS` if that exists for ``dtype``.
+    :param write_conv: Function to convert the value to be written into something the instrument will understand. Defaults to the relevant entry in :data:`DTYPE_CONVERTERS` if that exists for ``dtype``.
     :param rw_conv: If specified, use this function both as ``read_conv`` and as ``write_conv``.
     :param access_guard: If specified, this function is called before the instrument is queried. Can be used to make sure that the instrument is in the right state. If it is not, the ``access_guard`` function should raise a (useful) exception.
     :param read_suffix: This suffix is appended to the ``visa_cmd`` in case of a read access. Defaults to ``?`` as is common for SCPI commands.
     :param read_on_write: If True, a VISA read is issued even after a write access. Some devices return a value upon setting, this allows to clear out the buffer. The response is discarded.
-    :param set_cmd_delimiter: Delimiter between ``visa_cmd`` and the value to be set. Defaults to `` `` (blank space).
+    :param set_cmd_delimiter: Delimiter between ``visa_cmd`` and the value to be set. Defaults to :literal:`\ ` (blank space).
     :return:
     """
     if rw_conv is not None:
@@ -141,6 +142,10 @@ def visa_property(visa_cmd: str, dtype=None, read_only=False, read_conv=str, wri
             response = visa_read_value_transform(response, **self.command_options[this_prop])
 
         return response
+
+    # set type hint so that it is picked up by Sphinx for documentation
+    if dtype is not None:
+        visa_getter.__annotations__['return'] = dtype
 
     if not read_only:
         def visa_setter(self: "VisaDevice", value):
