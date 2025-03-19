@@ -332,7 +332,7 @@ class SDG(visadevice.VisaDevice):
 
 
     def set_burst(self, ch, state=None, burst_mode=None,
-                  trigger_source=None, gate_polarity=None, start_phase=None,
+                  trigger_source=None, gate_polarity=None, start_phase=None, n_cycles=None,
                   burst_period=None, burst_delay=None, trigger_mode=None, trigger_edge=None,
                   # carrier wave parameters
                   wave_type: WaveTypes = None, freq=None, period=None, amplitude_Vpp=None, offset=None,
@@ -350,10 +350,11 @@ class SDG(visadevice.VisaDevice):
         :param TriggerSources trigger_source: Trigger source.
         :param Polarities gate_polarity: Gate polarity.
         :param float start_phase: Phase offset at wave start (deg).
+        :param int n_cycles: Number of cycles in each burst. Valid if ``burst_mode`` is :data:`~BurstModes.N_CYCLES`.
         :param float burst_period: Burst period (s). Not valid if ``burst_mode`` is :data:`~BurstModes.GATED` or ``trigger_source`` is :data:`~TriggerSources.EXTERNAL`.
         :param float burst_delay: Burst start delay (s). Valid if ``burst_mode`` is :data:`~BurstModes.N_CYCLES`.
-        :param TriggerModes trigger_mode: Output trigger edge?
-        :param TriggerModes trigger_edge: Trigger edge.
+        :param TriggerModes trigger_mode: Output trigger mode.
+        :param TriggerModes trigger_edge: Source trigger edge.
         :param WaveTypes wave_type: Carrier waveform shape.
         :param float freq: Carrier frequency (Hz).
         :param float period: Carrier period (s).
@@ -371,10 +372,11 @@ class SDG(visadevice.VisaDevice):
         """
         params_dict = {
             "STATE": to_onoff(state),
-            "PRD": burst_period,
-            "STPS": start_phase,
             "GATE_NCYC": str_or_none(burst_mode),
             "TRSR": str_or_none(trigger_source),
+            "TIME": n_cycles,
+            "PRD": burst_period,
+            "STPS": start_phase,
             "DLAY": burst_delay,
             "PLRT": str_or_none(gate_polarity),
             "TRMD": str_or_none(trigger_mode),
@@ -421,7 +423,8 @@ class SDG(visadevice.VisaDevice):
             "DLAY": ("burst_delay", remove_units),
             "PLRT": ("gate_polarity", self.Polarities),
             "TRMD": ("trigger_mode", self.TriggerModes),
-            "EDGE": ("trigger_edge", self.TriggerModes)
+            "EDGE": ("trigger_edge", self.TriggerModes),
+            "TIME": ("n_cycles", remove_units)
         }
 
         res_str = self.instr.query(f"C{ch}:BTWV?")
