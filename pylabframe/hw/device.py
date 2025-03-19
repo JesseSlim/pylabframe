@@ -150,6 +150,9 @@ class Device:
         self.settings = copy.deepcopy(self.DEFAULT_SETTINGS)
         self.settings.update(settings)
 
+        self._debug_on = False
+        self.debug_log = []
+
     @classmethod
     def list_available(cls):
         """List available devices. In the generic ``Device`` class, this returns an empty list."""
@@ -168,6 +171,9 @@ class Device:
             metadata_collection[k] = value
 
         return metadata_collection
+
+    def set_debug(self, on=True):
+        self._debug_on = on
 
 
 ## Functions and classes that facilitate data conversion to and from SCPI strings

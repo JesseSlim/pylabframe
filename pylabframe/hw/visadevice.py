@@ -6,7 +6,7 @@ This module builds on top of the `PyVISA`_ package.
 
 .. _`PyVISA`: https://github.com/pyvisa/pyvisa
 """
-
+import copy
 import time
 import string
 
@@ -105,7 +105,7 @@ def visa_property(visa_cmd: str, dtype=None, read_only=False, read_conv=str, wri
     :param access_guard: If specified, this function is called before the instrument is queried. Can be used to make sure that the instrument is in the right state. If it is not, the ``access_guard`` function should raise a (useful) exception.
     :param read_suffix: This suffix is appended to the ``visa_cmd`` in case of a read access. Defaults to ``?`` as is common for SCPI commands.
     :param read_on_write: If True, a VISA read is issued even after a write access. Some devices return a value upon setting, this allows to clear out the buffer. The response is discarded.
-    :param set_cmd_delimiter: Delimiter between ``visa_cmd`` and the value to be set. Defaults to :literal:`\ ` (blank space).
+    :param set_cmd_delimiter: Delimiter between ``visa_cmd`` and the value to be set. Defaults to :literal:`\\ ` (blank space).
     :return:
     """
     if rw_conv is not None:
@@ -133,7 +133,7 @@ def visa_property(visa_cmd: str, dtype=None, read_only=False, read_conv=str, wri
             # doing this gives us access to object properties (eg channel id) that can be put in the command string
             fmt_visa_cmd = fmt_visa_cmd.format(**self.query_params)
         # we end the command with a configurable suffix, usually ? for SCPI settings
-        response = self.instr.query(f"{fmt_visa_cmd}{read_suffix}")
+        response = self._query(f"{fmt_visa_cmd}{read_suffix}")
         response = read_conv(response.strip())
 
         # apply configurable transformations
@@ -168,11 +168,11 @@ def visa_property(visa_cmd: str, dtype=None, read_only=False, read_conv=str, wri
             # we squeeze in a configurable delimiter (default is space)
             cmd = f"{fmt_visa_cmd}{set_cmd_delimiter}{value}"
             if not read_on_write:
-                self.instr.write(cmd)
+                self._write(cmd)
             else:
                 # some devices return a value upon setting, optionally read that out to clear the buffer
                 # we discard the response, nothing we can do with it here
-                self.instr.query(cmd)
+                self._query(cmd)
     else:
         visa_setter = None
 
@@ -217,11 +217,11 @@ def visa_command(visa_cmd, wait_until_done=False, kwarg_defaults=None, wait_befo
             return self.wait_until_done(fmt_visa_cmd, max_wait=max_wait)
         else:
             if not read_on_write:
-                return self.instr.write(fmt_visa_cmd)
+                return self._write(fmt_visa_cmd)
             else:
                 # some devices return a value upon setting, optionally read that out to clear the buffer
                 # return the response
-                return self.instr.query(fmt_visa_cmd)
+                return self._query(fmt_visa_cmd)
 
     return visa_executer
 
@@ -244,9 +244,9 @@ def visa_query(visa_cmd, kwarg_defaults=None, binary=False, **query_kw):
             raise ValueError(f"Missing argument {e.args[0]} in VISA command '{visa_cmd}'")
 
         if not binary:
-            return self.instr.query(fmt_visa_cmd, **query_kw)
+            return self._query(fmt_visa_cmd, **query_kw)
         else:
-            return self.instr.query_binary_values(fmt_visa_cmd, datatype='s', container=bytes, **query_kw)
+            return self._query_binary_values(fmt_visa_cmd, datatype='s', container=bytes, **query_kw)
 
     return visa_executer
 
@@ -267,6 +267,20 @@ def visa_write_value_transform(val, value_multiplier=None, round_on_write_digits
     if round_on_write_digits is not None:
         val = round(val, round_on_write_digits)
     return val
+
+
+def debug_wrapper_method(func_name):
+    def _method(self, *args, **kw):
+        if self._debug_on:
+            event = {'type': func_name, 'args': args, 'kw': kw}
+            self.debug_log.append(event)
+        inner_func = eval(f'self.{func_name}')
+        rval = inner_func(*args, **kw)
+        if self._debug_on:
+            event = {'type': f'{func_name}_rval', 'rval': rval}
+            self.debug_log.append(event)
+        return rval
+    return _method
 
 
 class VisaDevice(device.Device):
@@ -295,7 +309,7 @@ class VisaDevice(device.Device):
         return list(_visa_rm.list_resources())
 
     def get_identifier(self, sanitize=True):
-        response = self.instr.query("*IDN?")
+        response = self._query("*IDN?")
         if sanitize:
             response = response.strip()
         return response
@@ -306,13 +320,13 @@ class VisaDevice(device.Device):
         else:
             cmd_string = "*OPC?"
         start_time = time.perf_counter()
-        self.instr.write(cmd_string)
+        self._write(cmd_string)
         is_done = False
         while not is_done:
             if max_wait is not False and time.perf_counter() - start_time > max_wait:
                 raise TimeoutError(f"Exceeded the maximum waiting time of {max_wait} s")
             try:
-                result_code = self.instr.read()
+                result_code = self._read()
                 is_done = True
             except pyvisa.VisaIOError as e:
                 if e.error_code != pyvisa.constants.StatusCode.error_timeout:
@@ -359,4 +373,10 @@ class VisaDevice(device.Device):
     # status_byte = visa_property("*STB", dtype=int, read_only=True)
     @property
     def status_byte(self):
-        return self.instr.read_stb()  # seems to be the more specific way of reading status byte?
+        return self._read_stb()  # seems to be the more specific way of reading status byte?
+
+    _write = debug_wrapper_method('instr.write')
+    _read = debug_wrapper_method('instr.read')
+    _query = debug_wrapper_method('instr.query')
+    _query_binary_values = debug_wrapper_method('instr.query_binary_values')
+    _read_stb = debug_wrapper_method('instr.read_stb')
