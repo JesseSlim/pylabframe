@@ -93,6 +93,9 @@ class TektronixScope(visadevice.VisaDevice):
     waveform_x_unit = visa_property("wfmoutpre:xunit", read_only=True, read_conv=str_conv)
     """X units for the current waveform"""
 
+    is_busy = visa_property("busy", read_only=True, dtype=bool)
+    """Query the busy status of the instrument"""
+
 
     def acquire_channel_waveform(self, channel_id, start=1, stop=None, math_channel=False):
         """Transfer waveform data to PC.

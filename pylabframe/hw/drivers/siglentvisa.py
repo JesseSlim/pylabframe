@@ -171,7 +171,7 @@ class SDG(visadevice.VisaDevice):
             params.append("PLRT")
             params.append("INVT" if invert_polarity else "NOR")
 
-        self.instr.write(f"C{ch}:OUTP " + ",".join(map(str, params)))
+        self._write(f"C{ch}:OUTP " + ",".join(map(str, params)))
 
     def get_output(self, ch):
         """Retrieve the current output channel configuration.
@@ -180,7 +180,7 @@ class SDG(visadevice.VisaDevice):
         :return: A :external:class:`dict` that holds the output channel configuration.
                  Items correspond to the parameters of :meth:`set_output`.
         """
-        res = self.instr.query(f"C{ch}:OUTP?")
+        res = self._query(f"C{ch}:OUTP?")
         res = res.split(" ")[1]
         res = res.split(",")
 
@@ -276,7 +276,7 @@ class SDG(visadevice.VisaDevice):
 
         params_str = params_dict_to_str(params_dict)
 
-        self.instr.write(f"C{ch}:BSWV " + params_str)
+        self._write(f"C{ch}:BSWV " + params_str)
 
     def get_wave(self, ch):
         """Retrieve the current output waveform configuration.
@@ -285,7 +285,7 @@ class SDG(visadevice.VisaDevice):
         :return: A :external:class:`dict` that holds the output waveform configuration.
                  Items correspond to the parameters of :meth:`set_wave`.
         """
-        res_str = self.instr.query(f"C{ch}:BSWV?")
+        res_str = self._query(f"C{ch}:BSWV?")
         return self._interpret_wave_params(res_str)
 
     @classmethod
@@ -331,7 +331,7 @@ class SDG(visadevice.VisaDevice):
         return wave_params
 
 
-    def set_burst(self, ch, state=None, burst_mode=None,
+    def set_burst(self, ch, state=True, burst_mode=None,
                   trigger_source=None, gate_polarity=None, start_phase=None, n_cycles=None,
                   burst_period=None, burst_delay=None, trigger_mode=None, trigger_edge=None,
                   # carrier wave parameters
@@ -345,7 +345,7 @@ class SDG(visadevice.VisaDevice):
         Not all parameters are available for all waveforms.
 
         :param int ch: Index of output channel.
-        :param bool state: Enable burst.
+        :param bool state: Enable burst (default True). Needs to be enabled before any burst parameters can be set
         :param BurstModes burst_mode: Burst mode setting.
         :param TriggerSources trigger_source: Trigger source.
         :param Polarities gate_polarity: Gate polarity.
@@ -402,10 +402,14 @@ class SDG(visadevice.VisaDevice):
 
         params_str = params_dict_to_str(params_dict)
         carrier_str = params_dict_to_str(carrier_params)
-        if len(carrier_str) > 0:
-            carrier_str = "CARR,"+carrier_str
 
-        self.instr.write(f"C{ch}:BTWV " + params_str + carrier_str)
+        # turns out we can't set burst and carrier parameters at the same time.
+        # so here, I do two separate writes
+        if len(params_str) > 0:
+            self._write(f"C{ch}:BTWV " + params_str)
+
+        if len(carrier_str) > 0:
+            self._write(f"C{ch}:BTWV CARR," + carrier_str)
 
     def get_burst(self, ch):
         """Retrieve the current output *burst* waveform configuration.
@@ -427,7 +431,7 @@ class SDG(visadevice.VisaDevice):
             "TIME": ("n_cycles", remove_units)
         }
 
-        res_str = self.instr.query(f"C{ch}:BTWV?")
+        res_str = self._query(f"C{ch}:BTWV?")
 
         res = res_str.split(" ")[1]
         res = res.split(",")
@@ -448,3 +452,6 @@ class SDG(visadevice.VisaDevice):
                 res = []
 
         return burst_params
+
+    def trigger_burst(self, ch):
+        self._write(f"C{ch}:BTWV MTRIG")
