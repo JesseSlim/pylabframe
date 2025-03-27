@@ -183,6 +183,20 @@ class NumericalData:
             self.axes_names = self.axes_names + [None] * (ax_index + 1 - len(self.axes_names))
         self.axes_names[ax_index] = ax_name
 
+    def remove_all_axes(self):
+        self.axes = []
+        self.axes_names = []
+
+    def has_axis(self, ax_index):
+        if self.axes is None:
+            return False
+        if len(self.axes) < ax_index + 1:
+            return False
+        if self.axes[ax_index] is None:
+            return False
+
+        return True
+
     @property
     def x_axis(self):
         return self.axes[0]
@@ -432,7 +446,11 @@ class NumericalData:
             plot_axis = plt.gca()
 
         plot_y = y_scaling * (apply_data_func(self.data_array) - y_offset)
-        plot_x = x_scaling * (self.x_axis - x_offset)
+
+        if self.has_axis(0):
+            plot_x = x_scaling * (self.x_axis - x_offset)
+        else:
+            plot_x = np.arange(len(plot_y))
 
         if self.error_array is not None:
             plot_err = y_scaling * error_scaling * apply_data_func(self.error_array)  # depending on the data func applied, this might not make sense
@@ -488,9 +506,20 @@ class NumericalData:
             import matplotlib.pyplot as plt
             plot_axis = plt.gca()
 
-        plot_x = x_scaling * (self.x_axis - x_offset)
-        plot_y = y_scaling * (self.y_axis - y_offset)
         plot_z = z_scaling * (apply_data_func(self.data_array) - z_offset)
+
+        # TODO: check if the defaults have the correct length if the axes are absent
+        if self.has_axis(0):
+            plot_x = x_scaling * (self.x_axis - x_offset)
+        else:
+            plot_x = np.arange(plot_z.shape[0])
+
+        if self.has_axis(1):
+            plot_y = y_scaling * (self.y_axis - y_offset)
+        else:
+            plot_y = np.arange(plot_z.shape[1])
+
+        # matplotlib expects the image data in transposed orientation
         plot_z = plot_z.T
 
         if transpose:
