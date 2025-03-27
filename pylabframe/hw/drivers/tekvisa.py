@@ -97,7 +97,7 @@ class TektronixScope(visadevice.VisaDevice):
     """Query the busy status of the instrument"""
 
 
-    def acquire_channel_waveform(self, channel_id, start=1, stop=None, math_channel=False):
+    def acquire_channel_waveform(self, channel_id, start=1, stop=None, math_channel=False, convert_data=True):
         """Transfer waveform data to PC.
 
         :param int channel_id: Index of the channel to be transferred
@@ -106,10 +106,11 @@ class TektronixScope(visadevice.VisaDevice):
         :param stop: Last data point to transfer, defaults to the waveform end.
         :type stop: int or None, optional
         :param bool math_channel: If True, transfer channel MATH<#> rather than voltage channel CH<#>, defaults to `False`.
+        :param bool convert_data: If True (default), the oscilloscope level data is converted to voltage, as numpy doubles (64-bit). If False, the raw oscilloscope data is saved (i.e. 16-bit signed integers for a voltage channel, 32-bit float for a MATH channel).
         :return: A :class:`~pylabframe.data.NumericalData` object holding the waveform data, time axis (s) and metadata.
         """
         self.initialize_waveform_transfer(channel_id, start=start, stop=stop, math_channel=math_channel)
-        wfm = self.do_waveform_transfer(math_channel=math_channel)
+        wfm = self.do_waveform_transfer(math_channel=math_channel, convert_data=convert_data)
         return wfm
 
 
@@ -147,10 +148,11 @@ class TektronixScope(visadevice.VisaDevice):
 
         self.instr.write("header 0")
 
-    def do_waveform_transfer(self, math_channel=False):
+    def do_waveform_transfer(self, math_channel=False, convert_data=True):
         """Do the waveform data transfer and convert to the right units. Usually no need to call directly -- is called automatically by :meth:`acquire_channel_waveform`
 
-        :param math_channel: If True, transfer a MATH channel rather than a (voltage) CH channel.
+        :param bool math_channel: If True, transfer a MATH channel rather than a (voltage) CH channel.
+        :param bool convert_data: If True (default), the oscilloscope level data is converted to voltage, as numpy doubles (64-bit). If False, the raw oscilloscope data is saved (i.e. 16-bit signed integers for a voltage channel, 32-bit float for a MATH channel).
         :return: A :class:`~pylabframe.data.NumericalData` object holding the waveform data, time axis (s) and metadata.
         """
         if not math_channel:
@@ -158,15 +160,27 @@ class TektronixScope(visadevice.VisaDevice):
         else:
             wfm_raw = self.instr.query_binary_values("curve?", datatype="f", is_big_endian=True, container=np.array)
 
-        wfm_converted = ((wfm_raw - self.waveform_y_offset_levels) * self.waveform_y_multiplier) + self.waveform_y_zero
-        x_axis = (np.arange(self.waveform_points) * self.waveform_x_increment) + self.waveform_x_zero
-
         metadata = {
             "x_unit": self.waveform_x_unit,
             "x_label": f"time",
             "y_unit": self.waveform_y_unit,
             "y_label": f"signal",
+            "data_converted": convert_data,
+            "_wfm_y_offset_levels": self.waveform_y_offset_levels,
+            "_wfm_y_multiplier": self.waveform_y_multiplier,
+            "_wfm_y_zero": self.waveform_y_zero,
+            "_wfm_points": self.waveform_points,
+            "_wfm_x_increment": self.waveform_x_increment,
+            "_wfm_x_zero": self.waveform_x_zero,
         }
+
+        if convert_data:
+            wfm_converted = ((wfm_raw - metadata["_wfm_y_offset_levels"]) * metadata["_wfm_y_multiplier"]) + metadata["_wfm_y_zero"]
+        else:
+            wfm_converted = wfm_raw
+
+        x_axis = (np.arange(metadata["_wfm_points"]) * metadata["_wfm_x_increment"]) + metadata["_wfm_x_zero"]
+
         data_obj = pylabframe.data.NumericalData(wfm_converted, x_axis=x_axis, metadata=metadata)
         return data_obj
 
