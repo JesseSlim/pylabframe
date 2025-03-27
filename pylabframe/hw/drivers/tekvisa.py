@@ -9,6 +9,8 @@ from pylabframe.hw.device import str_conv, SettingEnum, intbool_conv
 from pylabframe.hw.visadevice import visa_property, visa_command, visa_query
 import pylabframe.data
 
+from . import tekvisa_util
+
 
 class TektronixScope(visadevice.VisaDevice):
     """Device driver for Tektronix oscilloscopes.
@@ -165,7 +167,6 @@ class TektronixScope(visadevice.VisaDevice):
             "x_label": f"time",
             "y_unit": self.waveform_y_unit,
             "y_label": f"signal",
-            "data_converted": convert_data,
             "_wfm_y_offset_levels": self.waveform_y_offset_levels,
             "_wfm_y_multiplier": self.waveform_y_multiplier,
             "_wfm_y_zero": self.waveform_y_zero,
@@ -175,11 +176,13 @@ class TektronixScope(visadevice.VisaDevice):
         }
 
         if convert_data:
-            wfm_converted = ((wfm_raw - metadata["_wfm_y_offset_levels"]) * metadata["_wfm_y_multiplier"]) + metadata["_wfm_y_zero"]
+            wfm_converted = tekvisa_util.osc_convert_levels_to_voltages(wfm_raw, metadata)
         else:
             wfm_converted = wfm_raw
 
-        x_axis = (np.arange(metadata["_wfm_points"]) * metadata["_wfm_x_increment"]) + metadata["_wfm_x_zero"]
+        metadata['data_converted'] = convert_data
+
+        x_axis = tekvisa_util.osc_construct_time_axis(metadata)
 
         data_obj = pylabframe.data.NumericalData(wfm_converted, x_axis=x_axis, metadata=metadata)
         return data_obj
