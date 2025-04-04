@@ -385,12 +385,16 @@ class NumericalData:
 
     # saving functions
     # ================
-    def save_npz(self, file, stringify_enums=True, save_timestamp=True, save_location_option=None, **expand_kw):
+    def save_npz(self, file, stringify_enums=True, save_timestamp=True, save_location_option=None, save_axes=True, **expand_kw):
         file = path.expand_default_save_location(file, save_location_option=save_location_option, **expand_kw)
-        num_axes = len(self.axes) if self.axes is not None else 0
-        if num_axes > 0:
-            ax_dict = {f"axis_{i}": self.axes[i] for i in range(num_axes)}
+        if save_axes:
+            num_axes = len(self.axes) if self.axes is not None else 0
+            if num_axes > 0:
+                ax_dict = {f"axis_{i}": self.axes[i] for i in range(num_axes)}
+            else:
+                ax_dict = {}
         else:
+            num_axes = 0
             ax_dict = {}
 
         if save_timestamp:

@@ -77,6 +77,8 @@ class TektronixScope(visadevice.VisaDevice):
         self.force_trigger()
 
     # waveform transfer properties
+    waveform_metadata_string = visa_property("wfmoutpre", read_only=True, dtype=str)
+    """String summary of waveform metadata"""
     waveform_points = visa_property("wfmoutpre:nr_pt", read_only=True, read_conv=int)
     """Number of points in the current waveform."""
     waveform_y_multiplier = visa_property("wfmoutpre:ymult", read_only=True, read_conv=float)
@@ -173,6 +175,7 @@ class TektronixScope(visadevice.VisaDevice):
             "_wfm_points": self.waveform_points,
             "_wfm_x_increment": self.waveform_x_increment,
             "_wfm_x_zero": self.waveform_x_zero,
+            "_wfm_metadata": self.waveform_metadata_string
         }
 
         if convert_data:
